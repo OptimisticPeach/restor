@@ -6,6 +6,7 @@ use std::collections::btree_set::BTreeSet;
 use std::marker::PhantomData;
 use std::cell::{RefCell, Ref, RefMut};
 use std::fmt::{Debug, Formatter};
+use std::ops::Deref;
 
 pub type DynamicResult<Ok> = Result<Ok, ErrorDesc>;
 
@@ -228,27 +229,24 @@ impl<T: Clone> Clone for StorageUnit<T> {
     }
 }
 
-pub trait Unit {
-    fn one<'a>(&'a self) -> DynamicResult<Ref<'a, dyn Any>>;
-    fn one_mut<'a>(&'a self) -> DynamicResult<RefMut<'a, dyn Any>>;
+pub trait Unit<'a, Borrowed: Deref<Target=dyn Any> + 'a, MutBorrowed: Deref<Target=dyn Any> + 'a, Owned: Deref<Target=dyn Any> = Box<dyn Any>> {
+    fn one(&'a self) -> DynamicResult<Borrowed>;
+    fn one_mut(&'a self) -> DynamicResult<MutBorrowed>;
 
-    fn ind<'a>(&'a self, ind: usize) -> DynamicResult<Ref<'a, dyn Any>>;
-    fn ind_mut<'a>(&'a self, ind: usize) -> DynamicResult<RefMut<'a, dyn Any>>;
+    fn ind(&'a self, ind: usize) -> DynamicResult<Borrowed>;
+    fn ind_mut(&'a self, ind: usize) -> DynamicResult<MutBorrowed>;
 
-    fn extract(&self) -> DynamicResult<Box<dyn Any>>;
-    fn extract_ind(&self, ind: usize) -> DynamicResult<Box<dyn Any>>;
-    fn extract_many(&self) -> DynamicResult<Box<dyn Any>>;
+    fn extract(&self) -> DynamicResult<Owned>;
+    fn extract_ind(&self, ind: usize) -> DynamicResult<Owned>;
+    fn extract_many(&self) -> DynamicResult<Owned>;
 
-    fn insert_any(&self, new: Box<dyn Any>) -> Option<(Box<dyn Any>, ErrorDesc)>;
-
-    fn is_guarded(&self) -> bool;
-    fn to_guarded(&self) -> Option<&()>;
+    fn insert_any(&self, new: Owned) -> Option<(Owned, ErrorDesc)>;
 
     fn id(&self) -> TypeId;
 }
 
-impl<T: 'static> Unit for NonGuardedUnit<StorageUnit<T>> {
-    fn one<'a>(&'a self) -> DynamicResult<Ref<'a, dyn Any>> {
+impl<'a, T: 'static> Unit<'a, Ref<'a, dyn Any>, RefMut<'a, dyn Any>> for NonGuardedUnit<StorageUnit<T>> {
+    fn one(&'a self) -> DynamicResult<Ref<'a, dyn Any>> {
         if let Some(nx) = self.inner.try_borrow().ok() {
             match nx.one() {
                 Ok(_) => Ok(Ref::map(nx, |nx| &*nx.one().unwrap())),
@@ -256,7 +254,7 @@ impl<T: 'static> Unit for NonGuardedUnit<StorageUnit<T>> {
             }
         } else { Err(ErrorDesc::BorrowedIncompatibly) }
     }
-    fn one_mut<'a>(&'a self) -> DynamicResult<RefMut<'a, dyn Any>> {
+    fn one_mut(&'a self) -> DynamicResult<RefMut<'a, dyn Any>> {
         if let Some(mut nx) = self.inner.try_borrow_mut().ok() {
             match nx.one_mut() {
                 Ok(_) => Ok(RefMut::map(nx, |nx| &mut *nx.one_mut().unwrap())),
@@ -265,7 +263,7 @@ impl<T: 'static> Unit for NonGuardedUnit<StorageUnit<T>> {
         } else { Err(ErrorDesc::BorrowedIncompatibly) }
     }
 
-    fn ind<'a>(&'a self, ind: usize) -> DynamicResult<Ref<'a, dyn Any>> {
+    fn ind(&'a self, ind: usize) -> DynamicResult<Ref<'a, dyn Any>> {
         if let Some(nx) = self.inner.try_borrow().ok() {
             match nx.many() {
                 Ok(slice) => {
@@ -278,7 +276,7 @@ impl<T: 'static> Unit for NonGuardedUnit<StorageUnit<T>> {
             }
         } else { Err(ErrorDesc::BorrowedIncompatibly) }
     }
-    fn ind_mut<'a>(&'a self, ind: usize) -> DynamicResult<RefMut<'a, dyn Any>> {
+    fn ind_mut(&'a self, ind: usize) -> DynamicResult<RefMut<'a, dyn Any>> {
         if let Some(mut nx) = self.inner.try_borrow_mut().ok() {
             match nx.many_mut() {
                 Ok(slice) => match slice.get_mut(ind) {
@@ -344,32 +342,31 @@ impl<T: 'static> Unit for NonGuardedUnit<StorageUnit<T>> {
         }
     }
 
-    fn is_guarded(&self) -> bool { false }
-    fn to_guarded(&self) -> Option<&()> { None }
-
     fn id(&self) -> TypeId { TypeId::of::<T>() }
 }
 
-impl PartialEq<Self> for dyn Unit {
+impl<'a, R: Deref<Target=dyn Any> + 'a, RM: Deref<Target=dyn Any> + 'a, O: Deref<Target=dyn Any>> PartialEq<Self> for dyn Unit<'a, R, RM, O> {
     fn eq(&self, other: &Self) -> bool {
         self.id() == other.id()
     }
 }
 
-impl Debug for dyn Unit {
+impl<'a, R: Deref<Target=dyn Any> + 'a, RM: Deref<Target=dyn Any> + 'a, O: Deref<Target=dyn Any>> Debug for dyn Unit<'a, R, RM, O> {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         write!(f, "Unit(TypeId: {:?})", self.id())
     }
 }
 
-pub struct BlackBox {
-    data: HashMap<TypeId, Box<dyn Unit>>,
+type NonThreadedUnit<'a> = dyn Unit<'a, Ref<'a, dyn Any>, RefMut<'a, dyn Any>>;
+
+pub struct BlackBox<'a> {
+    data: HashMap<TypeId, Box<NonThreadedUnit<'a>>>,
 }
 
-impl BlackBox {
+impl<'a> BlackBox<'a> {
     pub fn new() -> Self {
         Self {
-            data: HashMap::new()
+            data: HashMap::new(),
         }
     }
 
@@ -406,37 +403,37 @@ impl BlackBox {
     }
 
     #[inline]
-    fn unit_get<T: 'static>(&self) -> DynamicResult<&dyn Unit> {
+    fn unit_get<T: 'static>(&'a self) -> DynamicResult<&'a NonThreadedUnit<'a>> {
         self.data.get(&TypeId::of::<T>()).map(|x| &**x).ok_or(ErrorDesc::NoAllocatedUnit)
     }
 
     #[inline]
-    pub fn get<T: 'static>(&self) -> DynamicResult<Ref<T>> {
+    pub fn get<T: 'static>(&'a self) -> DynamicResult<Ref<'a, T>> {
         Ok(Ref::map(self.unit_get::<T>()?.one()?, |x| x.downcast_ref().unwrap()))
     }
 
     #[inline]
-    pub fn ind<T: 'static>(&self, ind: usize) -> DynamicResult<Ref<T>> {
+    pub fn ind<T: 'static>(&'a self, ind: usize) -> DynamicResult<Ref<'a, T>> {
         Ok(Ref::map(self.unit_get::<T>()?.ind(ind)?, |x| x.downcast_ref().unwrap()))
     }
 
     #[inline]
-    pub fn get_mut<T: 'static>(&self) -> DynamicResult<RefMut<T>> {
+    pub fn get_mut<T: 'static>(&'a self) -> DynamicResult<RefMut<'a, T>> {
         Ok(RefMut::map(self.unit_get::<T>()?.one_mut()?, |x| x.downcast_mut().unwrap()))
     }
 
     #[inline]
-    pub fn ind_mut<T: 'static>(&self, ind: usize) -> DynamicResult<RefMut<T>> {
+    pub fn ind_mut<T: 'static>(&'a self, ind: usize) -> DynamicResult<RefMut<'a, T>> {
         Ok(RefMut::map(self.unit_get::<T>()?.ind_mut(ind)?, |x| x.downcast_mut().unwrap()))
     }
 
     #[inline]
-    pub fn extract<T: 'static>(&self) -> DynamicResult<T> {
+    pub fn extract<T: 'static>(&'a self) -> DynamicResult<T> {
         Ok(*self.unit_get::<T>()?.extract()?.downcast().unwrap())
     }
 
     #[inline]
-    pub fn extract_many<T: 'static>(&self) -> DynamicResult<Box<[T]>> {
+    pub fn extract_many<T: 'static>(&'a self) -> DynamicResult<Box<[T]>> {
         Ok(*self.unit_get::<T>()?.extract_many()?.downcast().unwrap())
     }
 }

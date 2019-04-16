@@ -1,9 +1,6 @@
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::mem::swap;
-use std::rc::Rc;
-use std::collections::btree_set::BTreeSet;
-use std::marker::PhantomData;
 use std::cell::{RefCell, Ref, RefMut};
 use std::fmt::{Debug, Formatter};
 use std::ops::Deref;

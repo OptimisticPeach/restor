@@ -1,9 +1,21 @@
 use std::any::{Any, TypeId};
-use std::cell::{Ref, RefMut};
+use std::cell::{Ref, RefCell, RefMut};
 
 use super::*;
 
-impl<'a, T: 'static> Unit<'a> for NonGuardedUnit<StorageUnit<T>> {
+pub struct RefCellUnit<T> {
+    pub(crate) inner: RefCell<T>,
+}
+
+impl<T> RefCellUnit<T> {
+    pub fn new(data: T) -> Self {
+        Self {
+            inner: RefCell::new(data),
+        }
+    }
+}
+
+impl<'a, T: 'static> Unit<'a> for RefCellUnit<StorageUnit<T>> {
     type Borrowed = Ref<'a, dyn Any>;
     type MutBorrowed = RefMut<'a, dyn Any>;
     type Owned = Box<dyn Any>;

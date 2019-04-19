@@ -1,5 +1,4 @@
 use std::any::{Any, TypeId};
-use std::cell::RefCell;
 use std::fmt::{Debug, Formatter};
 use std::mem::swap;
 use std::ops::{Deref, DerefMut};
@@ -71,18 +70,6 @@ pub enum UnitError {
     IsNotOne,
     IsNotMany,
     OutOfBounds,
-}
-
-pub struct NonGuardedUnit<T> {
-    pub(crate) inner: RefCell<T>,
-}
-
-impl<T> NonGuardedUnit<T> {
-    pub fn new(data: T) -> Self {
-        Self {
-            inner: RefCell::new(data),
-        }
-    }
 }
 
 pub enum StorageUnit<T: Sized + 'static> {

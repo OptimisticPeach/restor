@@ -140,6 +140,8 @@ fn ind_mut() {
         }
         let z = x.ind_mut::<usize>(1);
         assert!(z.is_err());
-        if let Err(ErrorDesc::BorrowedIncompatibly) = z {} else { panic!("{:?}", z) }
+        if let Err(ErrorDesc::BorrowedIncompatibly) = z {} else {
+            panic!("{:?}", z)
+        }
     }
 }

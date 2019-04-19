@@ -11,3 +11,6 @@ readme = "readme.md"
 keywords = ["dynamic", "storage", "typed"]
 categories = ["data-structures"]
 license = "MIT"
+
+[dependencies]
+parking_lot = "0.7.1"

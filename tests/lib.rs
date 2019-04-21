@@ -48,6 +48,8 @@ fn borrow_twice_im() {
     assert!(y.is_ok());
     let z = x.get::<usize>();
     assert!(z.is_ok());
+    drop(y);
+    drop(z);
 }
 
 #[test]

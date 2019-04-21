@@ -39,7 +39,7 @@ pub trait Map<I: ?Sized, O: ?Sized>: Deref<Target=I> + Sized {
     fn map(self, f: Self::Func) -> Self::Output;
 }
 
-impl<'a, I: 'static, O: 'static> Map<I, O> for Ref<'a, I> {
+impl<'a, I: 'static + ?Sized, O: 'static + ?Sized> Map<I, O> for Ref<'a, I> {
     type Output = Ref<'a, O>;
     type Func = for<'b> fn(&'b I) -> &'b O;
     fn map(self, f: Self::Func) -> Ref<'a, O> {
@@ -47,7 +47,7 @@ impl<'a, I: 'static, O: 'static> Map<I, O> for Ref<'a, I> {
     }
 }
 
-impl<'a, I: 'static, O: 'static> Map<I, O> for MappedMutexGuard<'a, I> {
+impl<'a, I: 'static + Sync + Send + ?Sized, O: 'static + Sync + Send + ?Sized> Map<I, O> for MappedMutexGuard<'a, I> {
     type Output = MappedMutexGuard<'a, O>;
     type Func = for<'b> fn(&'b mut I) -> &'b mut O;
     fn map(self, f: Self::Func) -> MappedMutexGuard<'a, O> {
@@ -55,7 +55,7 @@ impl<'a, I: 'static, O: 'static> Map<I, O> for MappedMutexGuard<'a, I> {
     }
 }
 
-impl<'a, I: 'static, O: 'static> Map<I, O> for MappedRwLockReadGuard<'a, I> {
+impl<'a, I: 'static + Sync + Send + ?Sized, O: 'static + Sync + Send + ?Sized> Map<I, O> for MappedRwLockReadGuard<'a, I> {
     type Output = MappedRwLockReadGuard<'a, O>;
     type Func = for<'b> fn(&'b I) -> &'b O;
     fn map(self, f: Self::Func) -> MappedRwLockReadGuard<'a, O> {
@@ -69,7 +69,7 @@ pub trait MapMut<I: ?Sized, O: ?Sized>: Deref<Target=I> + Sized + DerefMut {
     fn map(self, f: Self::Func) -> Self::Output;
 }
 
-impl<'a, I: 'static, O: 'static> MapMut<I, O> for RefMut<'a, I> {
+impl<'a, I: 'static + ?Sized, O: 'static + ?Sized> MapMut<I, O> for RefMut<'a, I> {
     type Output = RefMut<'a, O>;
     type Func = for<'b> fn(&'b mut I) -> &'b mut O;
     fn map(self, f: Self::Func) -> RefMut<'a, O> {
@@ -77,7 +77,7 @@ impl<'a, I: 'static, O: 'static> MapMut<I, O> for RefMut<'a, I> {
     }
 }
 
-impl<'a, I: 'static + Sync + Send, O: 'static + Sync + Send> MapMut<I, O> for MappedRwLockWriteGuard<'a, I> {
+impl<'a, I: 'static + Sync + Send + ?Sized, O: 'static + Sync + Send + ?Sized> MapMut<I, O> for MappedRwLockWriteGuard<'a, I> {
     type Output = MappedRwLockWriteGuard<'a, O>;
     type Func = for<'b> fn(&'b mut I) -> &'b mut O;
     fn map(self, f: Self::Func) -> MappedRwLockWriteGuard<'a, O> {
@@ -85,7 +85,7 @@ impl<'a, I: 'static + Sync + Send, O: 'static + Sync + Send> MapMut<I, O> for Ma
     }
 }
 
-impl<'a, I: 'static + Sync + Send, O: 'static + Sync + Send> MapMut<I, O> for MappedMutexGuard<'a, I> {
+impl<'a, I: 'static + Sync + Send + ?Sized, O: 'static + Sync + Send + ?Sized> MapMut<I, O> for MappedMutexGuard<'a, I> {
     type Output = MappedMutexGuard<'a, O>;
     type Func = for<'b> fn(&'b mut I) -> &'b mut O;
     fn map(self, f: Self::Func) -> MappedMutexGuard<'a, O> {

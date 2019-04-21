@@ -38,7 +38,7 @@ The `Unit` trait allows us to abstract over the generic type of the container (R
 5. Pur inro its own place in the storage or in a `Vec`
 
 ## What's coming up:
-- A multithreaded version
+- [x] A multithreaded version
 - A more ergonomic api
   - The ability to pass a `Fn` to run on a piece of data or a slice
     - Callbacks in general

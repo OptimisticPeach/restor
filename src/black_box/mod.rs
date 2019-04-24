@@ -14,19 +14,19 @@ mod refcell_unit;
 pub use crate::black_box::refcell_unit::*;
 use std::marker::PhantomData;
 
-pub type RefCellUnitTrait<'a> = dyn Unit<
+pub type RefCellUnitTrait = dyn for<'a> Unit<
     'a,
     Borrowed=Ref<'a, dyn Any>,
     MutBorrowed=RefMut<'a, dyn Any>,
     Owned=Box<dyn Any>,
 >;
-pub type MutexUnitTrait<'a> = dyn Unit<
+pub type MutexUnitTrait = dyn for<'a> Unit<
     'a,
     Borrowed=MappedMutexGuard<'a, dyn Any>,
     MutBorrowed=MappedMutexGuard<'a, dyn Any>,
     Owned=Box<dyn Any>,
 >;
-pub type RwLockUnitTrait<'a> = dyn Unit<
+pub type RwLockUnitTrait = for<'a> Unit<
     'a,
     Borrowed=MappedRwLockReadGuard<'a, dyn Any>,
     MutBorrowed=MappedRwLockWriteGuard<'a, dyn Any>,
@@ -94,26 +94,20 @@ impl<'a, I: 'static + Sync + Send + ?Sized, O: 'static + Sync + Send + ?Sized> M
 }
 
 pub struct BlackBox<
-    'a,
-    R: Deref<Target=dyn Any> + 'a,
-    W: Deref<Target=dyn Any> + DerefMut + 'a,
+    R: Deref<Target=dyn Any>,
+    W: Deref<Target=dyn Any> + DerefMut,
     O: Deref<Target=dyn Any> + DerefMut,
-    U: Unit<'a, Borrowed=R, MutBorrowed=W, Owned=O> + ?Sized,
 > {
-    data: HashMap<TypeId, Box<U>>,
-    unused: PhantomData<&'a ()>,
+    data: HashMap<TypeId, Box<dyn for<'a> Unit<'a, Borrowed=R, MutBorrowed=W, Owned=O>>>
 }
 
 impl<
-    'a,
-    R: Deref<Target=dyn Any> + 'a,
-    W: Deref<Target=dyn Any> + DerefMut + 'a,
-    U: Unit<'a, Borrowed=R, MutBorrowed=W, Owned=Box<dyn Any>> + ?Sized,
-> BlackBox<'a, R, W, Box<dyn Any>, U> {
+    R: Deref<Target=dyn Any>,
+    W: Deref<Target=dyn Any> + DerefMut,
+> BlackBox<R, W, Box<dyn Any>> {
     pub fn new() -> Self {
         Self {
             data: HashMap::new(),
-            unused: Default::default(),
         }
     }
 
@@ -141,7 +135,7 @@ impl<
     }
 
     #[inline]
-    fn unit_get<T: 'static>(&'a self) -> DynamicResult<&'a U> {
+    fn unit_get<T: 'static>(&self) -> DynamicResult<&Unit<Borrowed=R, MutBorrowed=W, Owned=Box<dyn Any>>> {
         self.data
             .get(&TypeId::of::<T>())
             .map(|x| &**x)
@@ -149,7 +143,7 @@ impl<
     }
 
     #[inline]
-    pub fn get_mut<T: 'static>(&'a self) -> DynamicResult<<W as MapMut<dyn Any, T>>::Output>
+    pub fn get_mut<T: 'static>(&self) -> DynamicResult<<W as MapMut<dyn Any, T>>::Output>
         where W: MapMut<dyn Any, T, Func=fn(&mut dyn Any) -> &mut T> {
         Ok(W::map(self.unit_get::<T>()?.one_mut()?, |x| {
             x.downcast_mut().unwrap()
@@ -157,7 +151,7 @@ impl<
     }
 
     #[inline]
-    pub fn ind_mut<T: 'static>(&'a self, ind: usize) -> DynamicResult<<W as MapMut<dyn Any, T>>::Output>
+    pub fn ind_mut<T: 'static>(&self, ind: usize) -> DynamicResult<<W as MapMut<dyn Any, T>>::Output>
         where W: MapMut<dyn Any, T, Func=fn(&mut dyn Any) -> &mut T> {
         Ok(W::map(self.unit_get::<T>()?.ind_mut(ind)?, |x| {
             x.downcast_mut().unwrap()
@@ -165,24 +159,24 @@ impl<
     }
 
     #[inline]
-    pub fn extract<T: 'static>(&'a self) -> DynamicResult<T> {
+    pub fn extract<T: 'static>(&self) -> DynamicResult<T> {
         Ok(*self.unit_get::<T>()?.extract()?.downcast().unwrap())
     }
 
     #[inline]
-    pub fn extract_many<T: 'static>(&'a self) -> DynamicResult<Box<[T]>> {
+    pub fn extract_many<T: 'static>(&self) -> DynamicResult<Box<[T]>> {
         Ok(*self.unit_get::<T>()?.extract_many()?.downcast().unwrap())
     }
 
     #[inline]
-    pub fn get<T: 'static>(&'a self) -> DynamicResult<<R as Map<dyn Any, T>>::Output>
+    pub fn get<T: 'static>(&self) -> DynamicResult<<R as Map<dyn Any, T>>::Output>
         where R: Map<dyn Any, T, Func=for<'b> fn(&'b dyn Any) -> &'b T> {
         Ok(R::map(self.unit_get::<T>()?.one()?, |x| {
             x.downcast_ref().unwrap()
         }))
     }
     #[inline]
-    pub fn ind<T: 'static>(&'a self, ind: usize) -> DynamicResult<<R as Map<dyn Any, T>>::Output>
+    pub fn ind<T: 'static>(&self, ind: usize) -> DynamicResult<<R as Map<dyn Any, T>>::Output>
         where R: Map<dyn Any, T, Func=for<'b> fn(&'b dyn Any) -> &'b T> {
         Ok(R::map(self.unit_get::<T>()?.ind(ind)?, |x| {
             x.downcast_ref().unwrap()
@@ -192,11 +186,9 @@ impl<
 
 impl<'a>
 BlackBox<
-    'a,
     MappedRwLockReadGuard<'a, dyn Any>,
     MappedRwLockWriteGuard<'a, dyn Any>,
     Box<dyn Any>,
-    RwLockUnitTrait<'a>,
 >
 {
     #[inline]
@@ -212,11 +204,9 @@ BlackBox<
 
 impl<'a>
 BlackBox<
-    'a,
     MappedMutexGuard<'a, dyn Any>,
     MappedMutexGuard<'a, dyn Any>,
     Box<dyn Any>,
-    MutexUnitTrait<'a>,
 >
 {
     #[inline]
@@ -230,7 +220,7 @@ BlackBox<
     }
 }
 
-impl<'a> BlackBox<'a, Ref<'a, dyn Any>, RefMut<'a, dyn Any>, Box<dyn Any>, RefCellUnitTrait<'a>> {
+impl<'a> BlackBox<Ref<'a, dyn Any>, RefMut<'a, dyn Any>, Box<dyn Any>> {
     #[inline]
     pub fn allocate_for<T: 'static>(&mut self) {
         if !self.data.contains_key(&TypeId::of::<T>()) {

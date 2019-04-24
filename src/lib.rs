@@ -27,12 +27,16 @@
 mod black_box;
 mod concurrent_black_box;
 
-pub type MutexStorage<'a> = BlackBox<MappedMutexGuard<'a, dyn Any>, MappedMutexGuard<'a, dyn Any>, Box<dyn Any>>;
-pub type RwLockStorage<'a> = BlackBox<MappedRwLockReadGuard<'a, dyn Any>, MappedRwLockWriteGuard<'a, dyn Any>, Box<dyn Any>>;
+pub type MutexStorage<'a> =
+    BlackBox<MappedMutexGuard<'a, dyn Any>, MappedMutexGuard<'a, dyn Any>, Box<dyn Any>>;
+pub type RwLockStorage<'a> =
+    BlackBox<MappedRwLockReadGuard<'a, dyn Any>, MappedRwLockWriteGuard<'a, dyn Any>, Box<dyn Any>>;
 pub type DynamicStorage<'a> = BlackBox<Ref<'a, dyn Any>, RefMut<'a, dyn Any>, Box<dyn Any>>;
 
-pub use black_box::{BlackBox, ErrorDesc, Unit, UnitError, RefCellUnitTrait, MutexUnitTrait, RwLockUnitTrait};
+pub use black_box::{
+    BlackBox, ErrorDesc, MutexUnitTrait, RefCellUnitTrait, RwLockUnitTrait, Unit, UnitError,
+};
 pub use concurrent_black_box::{MutexUnit, RwLockUnit};
-use std::cell::{Ref, RefMut};
+use parking_lot::{MappedMutexGuard, MappedRwLockReadGuard, MappedRwLockWriteGuard};
 use std::any::Any;
-use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard, MappedMutexGuard};
+use std::cell::{Ref, RefMut};

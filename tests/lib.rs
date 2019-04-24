@@ -60,7 +60,8 @@ fn borrow_twice_mut() {
     let y = x.get_mut::<usize>();
     assert!(y.is_ok());
     let z = x.get_mut::<usize>();
-    if let Err(ErrorDesc::BorrowedIncompatibly) = z {} else {
+    if let Err(ErrorDesc::BorrowedIncompatibly) = z {
+    } else {
         panic!();
     }
 }
@@ -142,7 +143,8 @@ fn ind_mut() {
         }
         let z = x.ind_mut::<usize>(1);
         assert!(z.is_err());
-        if let Err(ErrorDesc::BorrowedIncompatibly) = z {} else {
+        if let Err(ErrorDesc::BorrowedIncompatibly) = z {
+        } else {
             panic!("{:?}", z)
         }
     }

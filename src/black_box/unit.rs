@@ -223,9 +223,9 @@ impl<T: Clone> Clone for StorageUnit<T> {
 }
 
 pub trait Unit<'a> {
-    type Borrowed: Deref<Target=dyn Any> + 'a;
-    type MutBorrowed: Deref<Target=dyn Any> + DerefMut + 'a;
-    type Owned: Deref<Target=dyn Any> + DerefMut;
+    type Borrowed: Deref<Target = dyn Any> + 'a;
+    type MutBorrowed: Deref<Target = dyn Any> + DerefMut + 'a;
+    type Owned: Deref<Target = dyn Any> + DerefMut;
 
     fn one(&'a self) -> DynamicResult<Self::Borrowed>;
     fn one_mut(&'a self) -> DynamicResult<Self::MutBorrowed>;
@@ -243,11 +243,11 @@ pub trait Unit<'a> {
 }
 
 impl<
-    'a,
-    R: Deref<Target=dyn Any> + 'a,
-    RM: Deref<Target=dyn Any> + DerefMut + 'a,
-    O: Deref<Target=dyn Any> + DerefMut,
-> PartialEq for dyn Unit<'a, Borrowed=R, MutBorrowed=RM, Owned=O>
+        'a,
+        R: Deref<Target = dyn Any> + 'a,
+        RM: Deref<Target = dyn Any> + DerefMut + 'a,
+        O: Deref<Target = dyn Any> + DerefMut,
+    > PartialEq for dyn Unit<'a, Borrowed = R, MutBorrowed = RM, Owned = O>
 {
     fn eq(&self, other: &Self) -> bool {
         self.id() == other.id()
@@ -255,11 +255,11 @@ impl<
 }
 
 impl<
-    'a,
-    R: Deref<Target=dyn Any> + 'a,
-    RM: Deref<Target=dyn Any> + DerefMut + 'a,
-    O: Deref<Target=dyn Any> + DerefMut,
-> Debug for dyn Unit<'a, Borrowed=R, MutBorrowed=RM, Owned=O>
+        'a,
+        R: Deref<Target = dyn Any> + 'a,
+        RM: Deref<Target = dyn Any> + DerefMut + 'a,
+        O: Deref<Target = dyn Any> + DerefMut,
+    > Debug for dyn Unit<'a, Borrowed = R, MutBorrowed = RM, Owned = O>
 {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         write!(f, "Unit(TypeId: {:?})", self.id())

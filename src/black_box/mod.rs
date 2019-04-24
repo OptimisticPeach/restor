@@ -16,25 +16,25 @@ use std::marker::PhantomData;
 
 pub type RefCellUnitTrait = dyn for<'a> Unit<
     'a,
-    Borrowed=Ref<'a, dyn Any>,
-    MutBorrowed=RefMut<'a, dyn Any>,
-    Owned=Box<dyn Any>,
+    Borrowed = Ref<'a, dyn Any>,
+    MutBorrowed = RefMut<'a, dyn Any>,
+    Owned = Box<dyn Any>,
 >;
 pub type MutexUnitTrait = dyn for<'a> Unit<
     'a,
-    Borrowed=MappedMutexGuard<'a, dyn Any>,
-    MutBorrowed=MappedMutexGuard<'a, dyn Any>,
-    Owned=Box<dyn Any>,
+    Borrowed = MappedMutexGuard<'a, dyn Any>,
+    MutBorrowed = MappedMutexGuard<'a, dyn Any>,
+    Owned = Box<dyn Any>,
 >;
 pub type RwLockUnitTrait = for<'a> Unit<
     'a,
-    Borrowed=MappedRwLockReadGuard<'a, dyn Any>,
-    MutBorrowed=MappedRwLockWriteGuard<'a, dyn Any>,
-    Owned=Box<dyn Any>,
+    Borrowed = MappedRwLockReadGuard<'a, dyn Any>,
+    MutBorrowed = MappedRwLockWriteGuard<'a, dyn Any>,
+    Owned = Box<dyn Any>,
 >;
 
-pub trait Map<I: ?Sized, O: ?Sized>: Deref<Target=I> + Sized {
-    type Output: Deref<Target=O>;
+pub trait Map<I: ?Sized, O: ?Sized>: Deref<Target = I> + Sized {
+    type Output: Deref<Target = O>;
     type Func: Sized + 'static;
     fn map(self, f: Self::Func) -> Self::Output;
 }
@@ -47,7 +47,9 @@ impl<'a, I: 'static + ?Sized, O: 'static + ?Sized> Map<I, O> for Ref<'a, I> {
     }
 }
 
-impl<'a, I: 'static + Sync + Send + ?Sized, O: 'static + Sync + Send + ?Sized> Map<I, O> for MappedMutexGuard<'a, I> {
+impl<'a, I: 'static + Sync + Send + ?Sized, O: 'static + Sync + Send + ?Sized> Map<I, O>
+    for MappedMutexGuard<'a, I>
+{
     type Output = MappedMutexGuard<'a, O>;
     type Func = for<'b> fn(&'b mut I) -> &'b mut O;
     fn map(self, f: Self::Func) -> MappedMutexGuard<'a, O> {
@@ -55,7 +57,9 @@ impl<'a, I: 'static + Sync + Send + ?Sized, O: 'static + Sync + Send + ?Sized> M
     }
 }
 
-impl<'a, I: 'static + Sync + Send + ?Sized, O: 'static + Sync + Send + ?Sized> Map<I, O> for MappedRwLockReadGuard<'a, I> {
+impl<'a, I: 'static + Sync + Send + ?Sized, O: 'static + Sync + Send + ?Sized> Map<I, O>
+    for MappedRwLockReadGuard<'a, I>
+{
     type Output = MappedRwLockReadGuard<'a, O>;
     type Func = for<'b> fn(&'b I) -> &'b O;
     fn map(self, f: Self::Func) -> MappedRwLockReadGuard<'a, O> {
@@ -63,8 +67,8 @@ impl<'a, I: 'static + Sync + Send + ?Sized, O: 'static + Sync + Send + ?Sized> M
     }
 }
 
-pub trait MapMut<I: ?Sized, O: ?Sized>: Deref<Target=I> + Sized + DerefMut {
-    type Output: Deref<Target=O> + DerefMut;
+pub trait MapMut<I: ?Sized, O: ?Sized>: Deref<Target = I> + Sized + DerefMut {
+    type Output: Deref<Target = O> + DerefMut;
     type Func: Sized + 'static;
     fn map(self, f: Self::Func) -> Self::Output;
 }
@@ -77,7 +81,9 @@ impl<'a, I: 'static + ?Sized, O: 'static + ?Sized> MapMut<I, O> for RefMut<'a, I
     }
 }
 
-impl<'a, I: 'static + Sync + Send + ?Sized, O: 'static + Sync + Send + ?Sized> MapMut<I, O> for MappedRwLockWriteGuard<'a, I> {
+impl<'a, I: 'static + Sync + Send + ?Sized, O: 'static + Sync + Send + ?Sized> MapMut<I, O>
+    for MappedRwLockWriteGuard<'a, I>
+{
     type Output = MappedRwLockWriteGuard<'a, O>;
     type Func = for<'b> fn(&'b mut I) -> &'b mut O;
     fn map(self, f: Self::Func) -> MappedRwLockWriteGuard<'a, O> {
@@ -85,7 +91,9 @@ impl<'a, I: 'static + Sync + Send + ?Sized, O: 'static + Sync + Send + ?Sized> M
     }
 }
 
-impl<'a, I: 'static + Sync + Send + ?Sized, O: 'static + Sync + Send + ?Sized> MapMut<I, O> for MappedMutexGuard<'a, I> {
+impl<'a, I: 'static + Sync + Send + ?Sized, O: 'static + Sync + Send + ?Sized> MapMut<I, O>
+    for MappedMutexGuard<'a, I>
+{
     type Output = MappedMutexGuard<'a, O>;
     type Func = for<'b> fn(&'b mut I) -> &'b mut O;
     fn map(self, f: Self::Func) -> MappedMutexGuard<'a, O> {
@@ -94,17 +102,16 @@ impl<'a, I: 'static + Sync + Send + ?Sized, O: 'static + Sync + Send + ?Sized> M
 }
 
 pub struct BlackBox<
-    R: Deref<Target=dyn Any>,
-    W: Deref<Target=dyn Any> + DerefMut,
-    O: Deref<Target=dyn Any> + DerefMut,
+    R: Deref<Target = dyn Any>,
+    W: Deref<Target = dyn Any> + DerefMut,
+    O: Deref<Target = dyn Any> + DerefMut,
 > {
-    data: HashMap<TypeId, Box<dyn for<'a> Unit<'a, Borrowed=R, MutBorrowed=W, Owned=O>>>
+    data: HashMap<TypeId, Box<dyn for<'a> Unit<'a, Borrowed = R, MutBorrowed = W, Owned = O>>>,
 }
 
-impl<
-    R: Deref<Target=dyn Any>,
-    W: Deref<Target=dyn Any> + DerefMut,
-> BlackBox<R, W, Box<dyn Any>> {
+impl<R: Deref<Target = dyn Any>, W: Deref<Target = dyn Any> + DerefMut>
+    BlackBox<R, W, Box<dyn Any>>
+{
     pub fn new() -> Self {
         Self {
             data: HashMap::new(),
@@ -135,7 +142,9 @@ impl<
     }
 
     #[inline]
-    fn unit_get<T: 'static>(&self) -> DynamicResult<&Unit<Borrowed=R, MutBorrowed=W, Owned=Box<dyn Any>>> {
+    fn unit_get<T: 'static>(
+        &self,
+    ) -> DynamicResult<&Unit<Borrowed = R, MutBorrowed = W, Owned = Box<dyn Any>>> {
         self.data
             .get(&TypeId::of::<T>())
             .map(|x| &**x)
@@ -144,15 +153,22 @@ impl<
 
     #[inline]
     pub fn get_mut<T: 'static>(&self) -> DynamicResult<<W as MapMut<dyn Any, T>>::Output>
-        where W: MapMut<dyn Any, T, Func=fn(&mut dyn Any) -> &mut T> {
+    where
+        W: MapMut<dyn Any, T, Func = fn(&mut dyn Any) -> &mut T>,
+    {
         Ok(W::map(self.unit_get::<T>()?.one_mut()?, |x| {
             x.downcast_mut().unwrap()
         }))
     }
 
     #[inline]
-    pub fn ind_mut<T: 'static>(&self, ind: usize) -> DynamicResult<<W as MapMut<dyn Any, T>>::Output>
-        where W: MapMut<dyn Any, T, Func=fn(&mut dyn Any) -> &mut T> {
+    pub fn ind_mut<T: 'static>(
+        &self,
+        ind: usize,
+    ) -> DynamicResult<<W as MapMut<dyn Any, T>>::Output>
+    where
+        W: MapMut<dyn Any, T, Func = fn(&mut dyn Any) -> &mut T>,
+    {
         Ok(W::map(self.unit_get::<T>()?.ind_mut(ind)?, |x| {
             x.downcast_mut().unwrap()
         }))
@@ -170,14 +186,18 @@ impl<
 
     #[inline]
     pub fn get<T: 'static>(&self) -> DynamicResult<<R as Map<dyn Any, T>>::Output>
-        where R: Map<dyn Any, T, Func=for<'b> fn(&'b dyn Any) -> &'b T> {
+    where
+        R: Map<dyn Any, T, Func = for<'b> fn(&'b dyn Any) -> &'b T>,
+    {
         Ok(R::map(self.unit_get::<T>()?.one()?, |x| {
             x.downcast_ref().unwrap()
         }))
     }
     #[inline]
     pub fn ind<T: 'static>(&self, ind: usize) -> DynamicResult<<R as Map<dyn Any, T>>::Output>
-        where R: Map<dyn Any, T, Func=for<'b> fn(&'b dyn Any) -> &'b T> {
+    where
+        R: Map<dyn Any, T, Func = for<'b> fn(&'b dyn Any) -> &'b T>,
+    {
         Ok(R::map(self.unit_get::<T>()?.ind(ind)?, |x| {
             x.downcast_ref().unwrap()
         }))
@@ -185,11 +205,7 @@ impl<
 }
 
 impl<'a>
-BlackBox<
-    MappedRwLockReadGuard<'a, dyn Any>,
-    MappedRwLockWriteGuard<'a, dyn Any>,
-    Box<dyn Any>,
->
+    BlackBox<MappedRwLockReadGuard<'a, dyn Any>, MappedRwLockWriteGuard<'a, dyn Any>, Box<dyn Any>>
 {
     #[inline]
     pub fn allocate_for<T: 'static + Send + Sync>(&mut self) {
@@ -202,13 +218,7 @@ BlackBox<
     }
 }
 
-impl<'a>
-BlackBox<
-    MappedMutexGuard<'a, dyn Any>,
-    MappedMutexGuard<'a, dyn Any>,
-    Box<dyn Any>,
->
-{
+impl<'a> BlackBox<MappedMutexGuard<'a, dyn Any>, MappedMutexGuard<'a, dyn Any>, Box<dyn Any>> {
     #[inline]
     pub fn allocate_for<T: 'static + Send + Sync>(&mut self) {
         if !self.data.contains_key(&TypeId::of::<T>()) {

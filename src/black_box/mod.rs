@@ -105,8 +105,10 @@ pub struct BlackBox<U: ?Sized> {
     data: HashMap<TypeId, Box<U>>,
 }
 
-impl<R: Deref<Target = dyn Any>, W: Deref<Target = dyn Any> + DerefMut>
-    BlackBox<dyn for<'a> Unit<'a, Borrowed = R, MutBorrowed = W, Owned = Box<dyn Any>>>
+type Borrowed<'a, T: Unit<'a>> = <T as Unit<'a>>::Borrowed;
+type MutBorrowed<'a, T: Unit<'a>> = <T as Unit<'a>>::MutBorrowed;
+
+impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U>
 {
     pub fn new() -> Self {
         Self {
@@ -138,9 +140,9 @@ impl<R: Deref<Target = dyn Any>, W: Deref<Target = dyn Any> + DerefMut>
     }
 
     #[inline]
-    fn unit_get<T: 'static>(
-        &self,
-    ) -> DynamicResult<&Unit<Borrowed = R, MutBorrowed = W, Owned = Box<dyn Any>>> {
+    fn unit_get<'a, T: 'static>(
+        &'a self,
+    ) -> DynamicResult<&U> {
         self.data
             .get(&TypeId::of::<T>())
             .map(|x| &**x)
@@ -148,24 +150,22 @@ impl<R: Deref<Target = dyn Any>, W: Deref<Target = dyn Any> + DerefMut>
     }
 
     #[inline]
-    pub fn get_mut<T: 'static>(&self) -> DynamicResult<<W as MapMut<dyn Any, T>>::Output>
+    pub fn get_mut<'a, T: 'static>(&'a self) -> DynamicResult<<MutBorrowed<'a, U> as MapMut<dyn Any, T>>::Output>
     where
-        W: MapMut<dyn Any, T, Func = fn(&mut dyn Any) -> &mut T>,
+        MutBorrowed<'a, U>: MapMut<dyn Any, T, Func = fn(&mut dyn Any) -> &mut T>,
     {
-        Ok(W::map(self.unit_get::<T>()?.one_mut()?, |x| {
-            x.downcast_mut().unwrap()
-        }))
+        Ok(Self::unit_get::<T>(self)?.one_mut()?.map(|x| x.downcast_mut().unwrap()))
     }
 
     #[inline]
-    pub fn ind_mut<T: 'static>(
-        &self,
+    pub fn ind_mut<'a, T: 'static>(
+        &'a self,
         ind: usize,
-    ) -> DynamicResult<<W as MapMut<dyn Any, T>>::Output>
+    ) -> DynamicResult<<MutBorrowed<'a, U> as MapMut<dyn Any, T>>::Output>
     where
-        W: MapMut<dyn Any, T, Func = fn(&mut dyn Any) -> &mut T>,
+        MutBorrowed<'a, U>: MapMut<dyn Any, T, Func = fn(&mut dyn Any) -> &mut T>,
     {
-        Ok(W::map(self.unit_get::<T>()?.ind_mut(ind)?, |x| {
+        Ok(self.unit_get::<T>()?.ind_mut(ind)?.map(|x| {
             x.downcast_mut().unwrap()
         }))
     }
@@ -181,20 +181,20 @@ impl<R: Deref<Target = dyn Any>, W: Deref<Target = dyn Any> + DerefMut>
     }
 
     #[inline]
-    pub fn get<T: 'static>(&self) -> DynamicResult<<R as Map<dyn Any, T>>::Output>
+    pub fn get<'a, T: 'static>(&'a self) -> DynamicResult<<Borrowed<'a, U> as Map<dyn Any, T>>::Output>
     where
-        R: Map<dyn Any, T, Func = for<'b> fn(&'b dyn Any) -> &'b T>,
+        Borrowed<'a, U>: Map<dyn Any, T, Func = for<'b> fn(&'b dyn Any) -> &'b T>,
     {
-        Ok(R::map(self.unit_get::<T>()?.one()?, |x| {
+        Ok(self.unit_get::<T>()?.one()?.map(|x| {
             x.downcast_ref().unwrap()
         }))
     }
     #[inline]
-    pub fn ind<T: 'static>(&self, ind: usize) -> DynamicResult<<R as Map<dyn Any, T>>::Output>
+    pub fn ind<'a, T: 'static>(&'a self, ind: usize) -> DynamicResult<<Borrowed<'a, U> as Map<dyn Any, T>>::Output>
     where
-        R: Map<dyn Any, T, Func = for<'b> fn(&'b dyn Any) -> &'b T>,
+        Borrowed<'a, U>: Map<dyn Any, T, Func = for<'b> fn(&'b dyn Any) -> &'b T>,
     {
-        Ok(R::map(self.unit_get::<T>()?.ind(ind)?, |x| {
+        Ok(self.unit_get::<T>()?.ind(ind)?.map(|x| {
             x.downcast_ref().unwrap()
         }))
     }

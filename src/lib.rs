@@ -27,33 +27,30 @@
 mod black_box;
 mod concurrent_black_box;
 
-pub type MutexStorage =
-    BlackBox<
-        dyn for<'a> Unit<
-            'a,
-            Borrowed = MappedMutexGuard<'a, dyn Any>,
-            MutBorrowed = MappedMutexGuard<'a, dyn Any>,
-            Owned = Box<dyn Any>
-        >
-    >;
-pub type RwLockStorage =
-    BlackBox<
-        dyn for<'a> Unit<
-            'a,
-            Borrowed = MappedRwLockReadGuard<'a, dyn Any>,
-            MutBorrowed = MappedRwLockWriteGuard<'a, dyn Any>,
-            Owned = Box<dyn Any>
-        >
-    >;
-pub type DynamicStorage =
-    BlackBox<
-        dyn for<'a> Unit<
-            'a,
-            Borrowed = Ref<'a, dyn Any>,
-            MutBorrowed = RefMut<'a, dyn Any>,
-            Owned = Box<dyn Any>
-        >
-    >;
+pub type MutexStorage = BlackBox<
+    dyn for<'a> Unit<
+        'a,
+        Borrowed = MappedMutexGuard<'a, dyn Any>,
+        MutBorrowed = MappedMutexGuard<'a, dyn Any>,
+        Owned = Box<dyn Any>,
+    >,
+>;
+pub type RwLockStorage = BlackBox<
+    dyn for<'a> Unit<
+        'a,
+        Borrowed = MappedRwLockReadGuard<'a, dyn Any>,
+        MutBorrowed = MappedRwLockWriteGuard<'a, dyn Any>,
+        Owned = Box<dyn Any>,
+    >,
+>;
+pub type DynamicStorage = BlackBox<
+    dyn for<'a> Unit<
+        'a,
+        Borrowed = Ref<'a, dyn Any>,
+        MutBorrowed = RefMut<'a, dyn Any>,
+        Owned = Box<dyn Any>,
+    >,
+>;
 
 pub use black_box::{
     BlackBox, ErrorDesc, MutexUnitTrait, RefCellUnitTrait, RwLockUnitTrait, Unit, UnitError,

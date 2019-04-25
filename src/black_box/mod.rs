@@ -101,9 +101,7 @@ impl<'a, I: 'static + Sync + Send + ?Sized, O: 'static + Sync + Send + ?Sized> M
     }
 }
 
-pub struct BlackBox<
-    U: ?Sized
-> {
+pub struct BlackBox<U: ?Sized> {
     data: HashMap<TypeId, Box<U>>,
 }
 
@@ -202,7 +200,15 @@ impl<R: Deref<Target = dyn Any>, W: Deref<Target = dyn Any> + DerefMut>
     }
 }
 
-impl BlackBox<dyn for<'a> Unit<'a, Borrowed = MappedRwLockReadGuard<'a, dyn Any>, MutBorrowed = MappedRwLockWriteGuard<'a, dyn Any>, Owned = Box<dyn Any>>>
+impl
+    BlackBox<
+        dyn for<'a> Unit<
+            'a,
+            Borrowed = MappedRwLockReadGuard<'a, dyn Any>,
+            MutBorrowed = MappedRwLockWriteGuard<'a, dyn Any>,
+            Owned = Box<dyn Any>,
+        >,
+    >
 {
     #[inline]
     pub fn allocate_for<T: 'static + Send + Sync>(&mut self) {
@@ -215,7 +221,16 @@ impl BlackBox<dyn for<'a> Unit<'a, Borrowed = MappedRwLockReadGuard<'a, dyn Any>
     }
 }
 
-impl BlackBox<dyn for<'a> Unit<'a, Borrowed = MappedMutexGuard<'a, dyn Any>, MutBorrowed =  MappedMutexGuard<'a, dyn Any>, Owned = Box<dyn Any>>> {
+impl
+    BlackBox<
+        dyn for<'a> Unit<
+            'a,
+            Borrowed = MappedMutexGuard<'a, dyn Any>,
+            MutBorrowed = MappedMutexGuard<'a, dyn Any>,
+            Owned = Box<dyn Any>,
+        >,
+    >
+{
     #[inline]
     pub fn allocate_for<T: 'static + Send + Sync>(&mut self) {
         if !self.data.contains_key(&TypeId::of::<T>()) {
@@ -227,7 +242,16 @@ impl BlackBox<dyn for<'a> Unit<'a, Borrowed = MappedMutexGuard<'a, dyn Any>, Mut
     }
 }
 
-impl BlackBox<dyn for<'a> Unit<'a, Borrowed = Ref<'a, dyn Any>, MutBorrowed = RefMut<'a, dyn Any>, Owned = Box<dyn Any>>> {
+impl
+    BlackBox<
+        dyn for<'a> Unit<
+            'a,
+            Borrowed = Ref<'a, dyn Any>,
+            MutBorrowed = RefMut<'a, dyn Any>,
+            Owned = Box<dyn Any>,
+        >,
+    >
+{
     #[inline]
     pub fn allocate_for<T: 'static>(&mut self) {
         if !self.data.contains_key(&TypeId::of::<T>()) {

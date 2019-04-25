@@ -20,7 +20,7 @@ impl<T> MutexUnit<T> {
 
 impl<'a, T: 'static> Unit<'a> for MutexUnit<StorageUnit<T>> {
     type Borrowed = MappedMutexGuard<'a, dyn Any>;
-    type MutBorrowed = MappedMutexGuard<'a, dyn Any>;
+    type MutBorrowed = MappedMutexGuard<'a, dyn Any>; 
     type Owned = Box<dyn Any>;
     fn one(&'a self) -> DynamicResult<MappedMutexGuard<'a, dyn Any>> {
         if let Some(mut nx) = self.inner.try_lock() {

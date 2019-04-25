@@ -27,11 +27,33 @@
 mod black_box;
 mod concurrent_black_box;
 
-pub type MutexStorage<'a> =
-    BlackBox<MappedMutexGuard<'a, dyn Any>, MappedMutexGuard<'a, dyn Any>, Box<dyn Any>>;
-pub type RwLockStorage<'a> =
-    BlackBox<MappedRwLockReadGuard<'a, dyn Any>, MappedRwLockWriteGuard<'a, dyn Any>, Box<dyn Any>>;
-pub type DynamicStorage<'a> = BlackBox<Ref<'a, dyn Any>, RefMut<'a, dyn Any>, Box<dyn Any>>;
+pub type MutexStorage =
+    BlackBox<
+        dyn for<'a> Unit<
+            'a,
+            Borrowed = MappedMutexGuard<'a, dyn Any>,
+            MutBorrowed = MappedMutexGuard<'a, dyn Any>,
+            Owned = Box<dyn Any>
+        >
+    >;
+pub type RwLockStorage =
+    BlackBox<
+        dyn for<'a> Unit<
+            'a,
+            Borrowed = MappedRwLockReadGuard<'a, dyn Any>,
+            MutBorrowed = MappedRwLockWriteGuard<'a, dyn Any>,
+            Owned = Box<dyn Any>
+        >
+    >;
+pub type DynamicStorage =
+    BlackBox<
+        dyn for<'a> Unit<
+            'a,
+            Borrowed = Ref<'a, dyn Any>,
+            MutBorrowed = RefMut<'a, dyn Any>,
+            Owned = Box<dyn Any>
+        >
+    >;
 
 pub use black_box::{
     BlackBox, ErrorDesc, MutexUnitTrait, RefCellUnitTrait, RwLockUnitTrait, Unit, UnitError,

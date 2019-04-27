@@ -15,12 +15,12 @@
 //! storage.allocate_for::<usize>();
 //! storage.allocate_for::<String>();
 //! storage.insert::<String>("abc".into());
-//! storage.insert_many::<usize>(vec![2usize, 4, 8, 16, 32]);
-//! let mut my_string = storage.get_mut::<String>();
+//! let mut my_string = storage.get_mut::<String>().unwrap();
+//! storage.insert_many::<usize>(vec![2, 4, 8, 16, 32]);
 //! for i in 0..5 {
-//!     *my_string = format!("{:?}, {:?}", *my_string, *storage.ind::<usize>(i));
+//!     *my_string = format!("{:?}, {:?}", *my_string, *storage.ind::<usize>(i).unwrap());
 //! }
-//! assert_eq!("abc, 2, 4, 8, 16, 32".to_string(), &*my_string);
+//! assert_eq!("abc, 2, 4, 8, 16, 32", &*my_string);
 //! # }
 //! ```
 //!
@@ -28,28 +28,28 @@ mod black_box;
 mod concurrent_black_box;
 
 pub type MutexStorage = BlackBox<
-    dyn for<'a> Unit<
+(dyn for<'a> Unit<
         'a,
-        Borrowed = MappedMutexGuard<'a, dyn Any>,
-        MutBorrowed = MappedMutexGuard<'a, dyn Any>,
-        Owned = Box<dyn Any>,
-    >,
+        Borrowed = MappedMutexGuard<'a, (dyn Any + Send)>,
+        MutBorrowed = MappedMutexGuard<'a, (dyn Any + Send)>,
+        Owned = Box<(dyn Any + Send)>,
+    > + Send),
 >;
 pub type RwLockStorage = BlackBox<
-    dyn for<'a> Unit<
+    (dyn for<'a> Unit<
         'a,
-        Borrowed = MappedRwLockReadGuard<'a, dyn Any>,
-        MutBorrowed = MappedRwLockWriteGuard<'a, dyn Any>,
-        Owned = Box<dyn Any>,
-    >,
+        Borrowed = MappedRwLockReadGuard<'a, (dyn Any + Send)>,
+        MutBorrowed = MappedRwLockWriteGuard<'a, (dyn Any + Send)>,
+        Owned = Box<(dyn Any + Send)>,
+    > + Send),
 >;
 pub type DynamicStorage = BlackBox<
-    dyn for<'a> Unit<
+    (dyn for<'a> Unit<
         'a,
-        Borrowed = Ref<'a, dyn Any>,
-        MutBorrowed = RefMut<'a, dyn Any>,
-        Owned = Box<dyn Any>,
-    >,
+        Borrowed = Ref<'a, (dyn Any + Send)>,
+        MutBorrowed = RefMut<'a, (dyn Any + Send)>,
+        Owned = Box<(dyn Any + Send)>,
+    >),
 >;
 
 pub use black_box::{

@@ -37,6 +37,7 @@ pub enum ErrorDesc {
     /// let x = storage.get::<usize>();
     /// assert!(x.is_err());
     /// // Error, there is no unit for `usize` allocated!
+    /// drop(x);
     /// storage.allocate_for::<usize>();
     /// storage.insert::<usize>(10);
     /// let x = storage.get::<usize>().unwrap();
@@ -166,7 +167,9 @@ impl<T: Sized> StorageUnit<T> {
     pub fn extract_one(&mut self) -> DynamicResult<T> {
         match self {
             StorageUnit::Nope => Err(ErrorDesc::Unit(UnitError::IsNotOne)),
-            StorageUnit::Many(_) => Err(ErrorDesc::Unit(UnitError::IsNotOne)),
+            StorageUnit::Many(x) => {
+                Ok(x.remove(0))
+            },
             StorageUnit::One(_) => {
                 let mut repl = StorageUnit::Nope;
                 swap(&mut repl, self);
@@ -182,7 +185,15 @@ impl<T: Sized> StorageUnit<T> {
     pub fn extract_many(&mut self) -> DynamicResult<Vec<T>> {
         match self {
             StorageUnit::Nope => Err(ErrorDesc::Unit(UnitError::IsNotMany)),
-            StorageUnit::One(_) => Err(ErrorDesc::Unit(UnitError::IsNotMany)),
+            StorageUnit::One(_) => {
+                let mut repl = StorageUnit::Nope;
+                swap(&mut repl, self);
+                if let StorageUnit::One(data) = repl {
+                    Ok(vec![data])
+                } else {
+                    unreachable!()
+                }
+            },
             StorageUnit::Many(_) => {
                 let mut repl = StorageUnit::Nope;
                 swap(&mut repl, self);
@@ -223,9 +234,9 @@ impl<T: Clone> Clone for StorageUnit<T> {
 }
 
 pub trait Unit<'a> {
-    type Borrowed: Deref<Target = dyn Any> + 'a;
-    type MutBorrowed: Deref<Target = dyn Any> + DerefMut + 'a;
-    type Owned: Deref<Target = dyn Any> + DerefMut;
+    type Borrowed: Deref<Target = (dyn Any + Send)> + 'a;
+    type MutBorrowed: Deref<Target = (dyn Any + Send)> + DerefMut + 'a;
+    type Owned: Deref<Target = (dyn Any + Send)> + DerefMut;
 
     fn one(&'a self) -> DynamicResult<Self::Borrowed>;
     fn one_mut(&'a self) -> DynamicResult<Self::MutBorrowed>;
@@ -244,9 +255,9 @@ pub trait Unit<'a> {
 
 impl<
         'a,
-        R: Deref<Target = dyn Any> + 'a,
-        RM: Deref<Target = dyn Any> + DerefMut + 'a,
-        O: Deref<Target = dyn Any> + DerefMut,
+        R: Deref<Target = (dyn Any + Send)> + 'a,
+        RM: Deref<Target = (dyn Any + Send)> + DerefMut + 'a,
+        O: Deref<Target = (dyn Any + Send)> + DerefMut,
     > PartialEq for dyn Unit<'a, Borrowed = R, MutBorrowed = RM, Owned = O>
 {
     fn eq(&self, other: &Self) -> bool {
@@ -256,9 +267,9 @@ impl<
 
 impl<
         'a,
-        R: Deref<Target = dyn Any> + 'a,
-        RM: Deref<Target = dyn Any> + DerefMut + 'a,
-        O: Deref<Target = dyn Any> + DerefMut,
+        R: Deref<Target = (dyn Any + Send)> + 'a,
+        RM: Deref<Target = (dyn Any + Send)> + DerefMut + 'a,
+        O: Deref<Target = (dyn Any + Send)> + DerefMut,
     > Debug for dyn Unit<'a, Borrowed = R, MutBorrowed = RM, Owned = O>
 {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {

@@ -12,6 +12,7 @@ use crate::concurrent_black_box::{MutexUnit, RwLockUnit};
 mod refcell_unit;
 
 pub use crate::black_box::refcell_unit::*;
+use std::marker::PhantomData;
 
 pub type RefCellUnitTrait = dyn for<'a> Unit<
     'a,
@@ -133,7 +134,7 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
                 None
             }
         } else {
-            None
+            Some((data, ErrorDesc::NoAllocatedUnit))
         }
     }
 
@@ -205,6 +206,58 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
             .unit_get::<T>()?
             .ind(ind)?
             .map(|x| x.downcast_ref().unwrap()))
+    }
+    #[inline]
+    pub fn iter<'a, T: 'static + Send>(&'a self) -> DynamicIter<'a, T, U>
+    where
+        Borrowed<'a, U>: Map<(dyn Any + Send), T, Func = for<'b> fn(&'b (dyn Any + Send)) -> &'b T>,
+    {
+        DynamicIter {
+            ind: 0,
+            black_box: self,
+            unused: Default::default(),
+        }
+    }
+}
+
+pub struct DynamicIter<'a, T: 'static + Send, U: ?Sized + for<'b> Unit<'b>> {
+    ind: usize,
+    black_box: &'a BlackBox<U>,
+    unused: PhantomData<T>,
+}
+
+impl<'a, T: 'static + Send, U: ?Sized + for<'b> Unit<'b, Owned = Box<(dyn Any + Send)>>> Iterator
+    for DynamicIter<'a, T, U>
+where
+    Borrowed<'a, U>:
+        Map<(dyn Any + Send + 'static), T, Func = for<'b> fn(&'b (dyn Any + Send)) -> &'b T>,
+{
+    type Item = <Borrowed<'a, U> as Map<(dyn Any + Send + 'static), T>>::Output;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.ind += 1;
+        self.black_box.ind::<T>(self.ind - 1).ok()
+    }
+}
+
+pub struct DynamicIterMut<'a, T: 'static + Send, U: ?Sized + for<'b> Unit<'b>> {
+    ind: usize,
+    black_box: &'a BlackBox<U>,
+    unused: PhantomData<T>,
+}
+
+impl<'a, T: 'static + Send, U: ?Sized + for<'b> Unit<'b, Owned = Box<(dyn Any + Send)>>> Iterator
+    for DynamicIterMut<'a, T, U>
+where
+    MutBorrowed<'a, U>: MapMut<
+        (dyn Any + Send + 'static),
+        T,
+        Func = for<'b> fn(&'b mut (dyn Any + Send)) -> &'b mut T,
+    >,
+{
+    type Item = <MutBorrowed<'a, U> as MapMut<(dyn Any + Send + 'static), T>>::Output;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.ind += 1;
+        self.black_box.ind_mut::<T>(self.ind - 1).ok()
     }
 }
 

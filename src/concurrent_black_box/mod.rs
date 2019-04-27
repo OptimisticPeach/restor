@@ -86,7 +86,7 @@ impl<'a, T: 'static + Send> Unit<'a> for MutexUnit<StorageUnit<T>> {
         if let Some(mut x) = self.inner.try_lock() {
             match x.extract_one() {
                 Ok(x) => Ok(Box::new(x)),
-                Err(e) => Err(ErrorDesc::Inner(Box::new(e))),
+                Err(e) => Err(e),
             }
         } else {
             Err(ErrorDesc::BorrowedIncompatibly)
@@ -226,7 +226,7 @@ impl<'a, T: 'static + Send> Unit<'a> for RwLockUnit<StorageUnit<T>> {
         if let Some(mut x) = self.inner.try_write() {
             match x.extract_one() {
                 Ok(x) => Ok(Box::new(x)),
-                Err(e) => Err(ErrorDesc::Inner(Box::new(e))),
+                Err(e) => Err(e),
             }
         } else {
             Err(ErrorDesc::BorrowedIncompatibly)

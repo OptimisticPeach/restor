@@ -47,23 +47,9 @@ pub enum ErrorDesc {
     NoAllocatedUnit,
     /// This is an internal error that should be ignored by the user. This should never be created.
     NoMatchingType,
-    /// This holds an inner `ErrorDesc`. Call `unwrap` on an `Inner` variant to get the inner error.
-    Inner(Box<ErrorDesc>),
     /// Contains an error specific to unit operations. Please refer to the `UnitError` documentation
     /// for more information.
     Unit(UnitError),
-}
-
-impl ErrorDesc {
-    /// Consumes the `ErrorDesc` and returns an `ErrorDesc` if it's an `Inner` variant. Panics if it
-    /// is not an `ErrorDesc::Inner` variant.
-    pub fn unwrap(self) -> ErrorDesc {
-        if let ErrorDesc::Inner(inner) = self {
-            *inner
-        } else {
-            panic!("Try to unwrap a non-inner ErrorDesc value!")
-        }
-    }
 }
 
 #[derive(Debug, PartialEq)]

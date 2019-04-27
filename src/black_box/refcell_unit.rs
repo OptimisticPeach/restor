@@ -15,6 +15,8 @@ impl<T> RefCellUnit<T> {
     }
 }
 
+// Any changes made to RefCell/Mutex/RwLock units are done first on this one, and then
+// Must be copied onto the other ones.
 impl<'a, T: 'static + Send> Unit<'a> for RefCellUnit<StorageUnit<T>> {
     type Borrowed = Ref<'a, (dyn Any + Send)>;
     type MutBorrowed = RefMut<'a, (dyn Any + Send)>;
@@ -23,7 +25,7 @@ impl<'a, T: 'static + Send> Unit<'a> for RefCellUnit<StorageUnit<T>> {
         if let Some(nx) = self.inner.try_borrow().ok() {
             match nx.one() {
                 Ok(_) => Ok(Ref::map(nx, |nx| &*nx.one().unwrap())),
-                Err(e) => Err(ErrorDesc::Inner(Box::new(e))),
+                Err(e) => Err(e),
             }
         } else {
             Err(ErrorDesc::BorrowedIncompatibly)
@@ -33,7 +35,7 @@ impl<'a, T: 'static + Send> Unit<'a> for RefCellUnit<StorageUnit<T>> {
         if let Some(mut nx) = self.inner.try_borrow_mut().ok() {
             match nx.one_mut() {
                 Ok(_) => Ok(RefMut::map(nx, |nx| &mut *nx.one_mut().unwrap())),
-                Err(e) => Err(ErrorDesc::Inner(Box::new(e))),
+                Err(e) => Err(e),
             }
         } else {
             Err(ErrorDesc::BorrowedIncompatibly)
@@ -47,7 +49,7 @@ impl<'a, T: 'static + Send> Unit<'a> for RefCellUnit<StorageUnit<T>> {
                     Some(_) => Ok(Ref::map(nx, |nx| &*nx.many().unwrap().get(ind).unwrap())),
                     None => Err(ErrorDesc::Unit(UnitError::OutOfBounds)),
                 },
-                Err(e) => Err(ErrorDesc::Inner(Box::new(e))),
+                Err(e) => Err(e),
             }
         } else {
             Err(ErrorDesc::BorrowedIncompatibly)
@@ -62,7 +64,7 @@ impl<'a, T: 'static + Send> Unit<'a> for RefCellUnit<StorageUnit<T>> {
                     })),
                     None => Err(ErrorDesc::Unit(UnitError::OutOfBounds)),
                 },
-                Err(e) => Err(ErrorDesc::Inner(Box::new(e))),
+                Err(e) => Err(e),
             }
         } else {
             Err(ErrorDesc::BorrowedIncompatibly)
@@ -73,7 +75,7 @@ impl<'a, T: 'static + Send> Unit<'a> for RefCellUnit<StorageUnit<T>> {
         if let Some(mut x) = self.inner.try_borrow_mut().ok() {
             match x.extract_one() {
                 Ok(x) => Ok(Box::new(x)),
-                Err(e) => Err(ErrorDesc::Inner(Box::new(e))),
+                Err(e) => Err(e),
             }
         } else {
             Err(ErrorDesc::BorrowedIncompatibly)
@@ -112,7 +114,7 @@ impl<'a, T: 'static + Send> Unit<'a> for RefCellUnit<StorageUnit<T>> {
                     TypeId::of::<T>()
                 )));
                 None
-            } else if new.is::<Box<Vec<T>>>() {
+            } else if new.is::<Vec<T>>() {
                 x.insert_many(*new.downcast::<Vec<T>>().unwrap());
                 None
             } else {

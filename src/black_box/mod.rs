@@ -15,25 +15,25 @@ pub use crate::black_box::refcell_unit::*;
 
 pub type RefCellUnitTrait = dyn for<'a> Unit<
     'a,
-    Borrowed=Ref<'a, (dyn Any + Send)>,
-    MutBorrowed=RefMut<'a, (dyn Any + Send)>,
-    Owned=Box<(dyn Any + Send)>,
+    Borrowed = Ref<'a, (dyn Any + Send)>,
+    MutBorrowed = RefMut<'a, (dyn Any + Send)>,
+    Owned = Box<(dyn Any + Send)>,
 >;
 pub type MutexUnitTrait = dyn for<'a> Unit<
     'a,
-    Borrowed=MappedMutexGuard<'a, (dyn Any + Send)>,
-    MutBorrowed=MappedMutexGuard<'a, (dyn Any + Send)>,
-    Owned=Box<(dyn Any + Send)>,
+    Borrowed = MappedMutexGuard<'a, (dyn Any + Send)>,
+    MutBorrowed = MappedMutexGuard<'a, (dyn Any + Send)>,
+    Owned = Box<(dyn Any + Send)>,
 >;
 pub type RwLockUnitTrait = for<'a> Unit<
     'a,
-    Borrowed=MappedRwLockReadGuard<'a, (dyn Any + Send)>,
-    MutBorrowed=MappedRwLockWriteGuard<'a, (dyn Any + Send)>,
-    Owned=Box<(dyn Any + Send)>,
+    Borrowed = MappedRwLockReadGuard<'a, (dyn Any + Send)>,
+    MutBorrowed = MappedRwLockWriteGuard<'a, (dyn Any + Send)>,
+    Owned = Box<(dyn Any + Send)>,
 >;
 
-pub trait Map<I: ?Sized, O: ?Sized>: Deref<Target=I> + Sized {
-    type Output: Deref<Target=O>;
+pub trait Map<I: ?Sized, O: ?Sized>: Deref<Target = I> + Sized {
+    type Output: Deref<Target = O>;
     type Func: Sized + 'static;
     fn map(self, f: Self::Func) -> Self::Output;
 }
@@ -47,7 +47,7 @@ impl<'a, I: 'static + ?Sized, O: 'static + ?Sized> Map<I, O> for Ref<'a, I> {
 }
 
 impl<'a, I: 'static + Send + ?Sized, O: 'static + Send + ?Sized> Map<I, O>
-for MappedMutexGuard<'a, I>
+    for MappedMutexGuard<'a, I>
 {
     type Output = MappedMutexGuard<'a, O>;
     type Func = for<'b> fn(&'b mut I) -> &'b mut O;
@@ -57,7 +57,7 @@ for MappedMutexGuard<'a, I>
 }
 
 impl<'a, I: 'static + Send + ?Sized, O: 'static + Send + ?Sized> Map<I, O>
-for MappedRwLockReadGuard<'a, I>
+    for MappedRwLockReadGuard<'a, I>
 {
     type Output = MappedRwLockReadGuard<'a, O>;
     type Func = for<'b> fn(&'b I) -> &'b O;
@@ -66,8 +66,8 @@ for MappedRwLockReadGuard<'a, I>
     }
 }
 
-pub trait MapMut<I: ?Sized, O: ?Sized>: Deref<Target=I> + Sized + DerefMut {
-    type Output: Deref<Target=O> + DerefMut;
+pub trait MapMut<I: ?Sized, O: ?Sized>: Deref<Target = I> + Sized + DerefMut {
+    type Output: Deref<Target = O> + DerefMut;
     type Func: Sized + 'static;
     fn map(self, f: Self::Func) -> Self::Output;
 }
@@ -81,7 +81,7 @@ impl<'a, I: 'static + ?Sized, O: 'static + ?Sized> MapMut<I, O> for RefMut<'a, I
 }
 
 impl<'a, I: 'static + Send + ?Sized, O: 'static + Send + ?Sized> MapMut<I, O>
-for MappedRwLockWriteGuard<'a, I>
+    for MappedRwLockWriteGuard<'a, I>
 {
     type Output = MappedRwLockWriteGuard<'a, O>;
     type Func = for<'b> fn(&'b mut I) -> &'b mut O;
@@ -91,7 +91,7 @@ for MappedRwLockWriteGuard<'a, I>
 }
 
 impl<'a, I: 'static + Send + ?Sized, O: 'static + Send + ?Sized> MapMut<I, O>
-for MappedMutexGuard<'a, I>
+    for MappedMutexGuard<'a, I>
 {
     type Output = MappedMutexGuard<'a, O>;
     type Func = for<'b> fn(&'b mut I) -> &'b mut O;
@@ -107,8 +107,7 @@ pub struct BlackBox<U: ?Sized> {
 type Borrowed<'a, T: Unit<'a>> = <T as Unit<'a>>::Borrowed;
 type MutBorrowed<'a, T: Unit<'a>> = <T as Unit<'a>>::MutBorrowed;
 
-impl<U: ?Sized + for<'a> Unit<'a, Owned=Box<(dyn Any + Send)>>> BlackBox<U>
-{
+impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
     pub fn new() -> Self {
         Self {
             data: HashMap::new(),
@@ -139,9 +138,7 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned=Box<(dyn Any + Send)>>> BlackBox<U>
     }
 
     #[inline]
-    fn unit_get<T: 'static + Send>(
-        &self,
-    ) -> DynamicResult<&U> {
+    fn unit_get<T: 'static + Send>(&self) -> DynamicResult<&U> {
         self.data
             .get(&TypeId::of::<T>())
             .map(|x| &**x)
@@ -149,11 +146,15 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned=Box<(dyn Any + Send)>>> BlackBox<U>
     }
 
     #[inline]
-    pub fn get_mut<'a, T: 'static + Send>(&'a self) -> DynamicResult<<MutBorrowed<'a, U> as MapMut<(dyn Any + Send), T>>::Output>
-        where
-            MutBorrowed<'a, U>: MapMut<(dyn Any + Send), T, Func=fn(&mut (dyn Any + Send)) -> &mut T>,
+    pub fn get_mut<'a, T: 'static + Send>(
+        &'a self,
+    ) -> DynamicResult<<MutBorrowed<'a, U> as MapMut<(dyn Any + Send), T>>::Output>
+    where
+        MutBorrowed<'a, U>: MapMut<(dyn Any + Send), T, Func = fn(&mut (dyn Any + Send)) -> &mut T>,
     {
-        Ok(Self::unit_get::<T>(self)?.one_mut()?.map(|x| x.downcast_mut().unwrap()))
+        Ok(Self::unit_get::<T>(self)?
+            .one_mut()?
+            .map(|x| x.downcast_mut().unwrap()))
     }
 
     #[inline]
@@ -161,12 +162,13 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned=Box<(dyn Any + Send)>>> BlackBox<U>
         &'a self,
         ind: usize,
     ) -> DynamicResult<<MutBorrowed<'a, U> as MapMut<(dyn Any + Send), T>>::Output>
-        where
-            MutBorrowed<'a, U>: MapMut<(dyn Any + Send), T, Func=fn(&mut (dyn Any + Send)) -> &mut T>,
+    where
+        MutBorrowed<'a, U>: MapMut<(dyn Any + Send), T, Func = fn(&mut (dyn Any + Send)) -> &mut T>,
     {
-        Ok(self.unit_get::<T>()?.ind_mut(ind)?.map(|x| {
-            x.downcast_mut().unwrap()
-        }))
+        Ok(self
+            .unit_get::<T>()?
+            .ind_mut(ind)?
+            .map(|x| x.downcast_mut().unwrap()))
     }
 
     #[inline]
@@ -180,34 +182,41 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned=Box<(dyn Any + Send)>>> BlackBox<U>
     }
 
     #[inline]
-    pub fn get<'a, T: 'static + Send>(&'a self) -> DynamicResult<<Borrowed<'a, U> as Map<(dyn Any + Send), T>>::Output>
-        where
-            Borrowed<'a, U>: Map<(dyn Any + Send), T, Func=for<'b> fn(&'b (dyn Any + Send)) -> &'b T>,
+    pub fn get<'a, T: 'static + Send>(
+        &'a self,
+    ) -> DynamicResult<<Borrowed<'a, U> as Map<(dyn Any + Send), T>>::Output>
+    where
+        Borrowed<'a, U>: Map<(dyn Any + Send), T, Func = for<'b> fn(&'b (dyn Any + Send)) -> &'b T>,
     {
-        Ok(self.unit_get::<T>()?.one()?.map(|x| {
-            x.downcast_ref().unwrap()
-        }))
+        Ok(self
+            .unit_get::<T>()?
+            .one()?
+            .map(|x| x.downcast_ref().unwrap()))
     }
     #[inline]
-    pub fn ind<'a, T: 'static + Send>(&'a self, ind: usize) -> DynamicResult<<Borrowed<'a, U> as Map<(dyn Any + Send), T>>::Output>
-        where
-            Borrowed<'a, U>: Map<(dyn Any + Send), T, Func=for<'b> fn(&'b (dyn Any + Send)) -> &'b T>,
+    pub fn ind<'a, T: 'static + Send>(
+        &'a self,
+        ind: usize,
+    ) -> DynamicResult<<Borrowed<'a, U> as Map<(dyn Any + Send), T>>::Output>
+    where
+        Borrowed<'a, U>: Map<(dyn Any + Send), T, Func = for<'b> fn(&'b (dyn Any + Send)) -> &'b T>,
     {
-        Ok(self.unit_get::<T>()?.ind(ind)?.map(|x| {
-            x.downcast_ref().unwrap()
-        }))
+        Ok(self
+            .unit_get::<T>()?
+            .ind(ind)?
+            .map(|x| x.downcast_ref().unwrap()))
     }
 }
 
 impl
-BlackBox<
-    (dyn for<'a> Unit<
-        'a,
-        Borrowed=MappedRwLockReadGuard<'a, (dyn Any + Send)>,
-        MutBorrowed=MappedRwLockWriteGuard<'a, (dyn Any + Send)>,
-        Owned=Box<(dyn Any + Send)>,
-    > + Send),
->
+    BlackBox<
+        (dyn for<'a> Unit<
+            'a,
+            Borrowed = MappedRwLockReadGuard<'a, (dyn Any + Send)>,
+            MutBorrowed = MappedRwLockWriteGuard<'a, (dyn Any + Send)>,
+            Owned = Box<(dyn Any + Send)>,
+        > + Send),
+    >
 {
     #[inline]
     pub fn allocate_for<T: 'static + Send>(&mut self) {
@@ -221,14 +230,14 @@ BlackBox<
 }
 
 impl
-BlackBox<
-    (dyn for<'a> Unit<
-        'a,
-        Borrowed=MappedMutexGuard<'a, (dyn Any + Send)>,
-        MutBorrowed=MappedMutexGuard<'a, (dyn Any + Send)>,
-        Owned=Box<(dyn Any + Send)>,
-    > + Send),
->
+    BlackBox<
+        (dyn for<'a> Unit<
+            'a,
+            Borrowed = MappedMutexGuard<'a, (dyn Any + Send)>,
+            MutBorrowed = MappedMutexGuard<'a, (dyn Any + Send)>,
+            Owned = Box<(dyn Any + Send)>,
+        > + Send),
+    >
 {
     #[inline]
     pub fn allocate_for<T: 'static + Send>(&mut self) {
@@ -242,14 +251,14 @@ BlackBox<
 }
 
 impl
-BlackBox<
-    (dyn for<'a> Unit<
-        'a,
-        Borrowed=Ref<'a, (dyn Any + Send)>,
-        MutBorrowed=RefMut<'a, (dyn Any + Send)>,
-        Owned=Box<(dyn Any + Send)>,
-    >),
->
+    BlackBox<
+        (dyn for<'a> Unit<
+            'a,
+            Borrowed = Ref<'a, (dyn Any + Send)>,
+            MutBorrowed = RefMut<'a, (dyn Any + Send)>,
+            Owned = Box<(dyn Any + Send)>,
+        >),
+    >
 {
     #[inline]
     pub fn allocate_for<T: 'static + Send>(&mut self) {
@@ -262,38 +271,50 @@ BlackBox<
     }
 }
 
-unsafe impl Send for BlackBox<
-    (dyn for<'a> Unit<
-        'a,
-        Borrowed=MappedMutexGuard<'a, (dyn Any + Send)>,
-        MutBorrowed=MappedMutexGuard<'a, (dyn Any + Send)>,
-        Owned=Box<(dyn Any + Send)>,
-    > + Send),
-> {}
+unsafe impl Send
+    for BlackBox<
+        (dyn for<'a> Unit<
+            'a,
+            Borrowed = MappedMutexGuard<'a, (dyn Any + Send)>,
+            MutBorrowed = MappedMutexGuard<'a, (dyn Any + Send)>,
+            Owned = Box<(dyn Any + Send)>,
+        > + Send),
+    >
+{
+}
 
-unsafe impl Sync for BlackBox<
-    (dyn for<'a> Unit<
-        'a,
-        Borrowed=MappedMutexGuard<'a, (dyn Any + Send)>,
-        MutBorrowed=MappedMutexGuard<'a, (dyn Any + Send)>,
-        Owned=Box<(dyn Any + Send)>,
-    > + Send),
-> {}
+unsafe impl Sync
+    for BlackBox<
+        (dyn for<'a> Unit<
+            'a,
+            Borrowed = MappedMutexGuard<'a, (dyn Any + Send)>,
+            MutBorrowed = MappedMutexGuard<'a, (dyn Any + Send)>,
+            Owned = Box<(dyn Any + Send)>,
+        > + Send),
+    >
+{
+}
 
-unsafe impl Send for BlackBox<
-    (dyn for<'a> Unit<
-        'a,
-        Borrowed=MappedRwLockReadGuard<'a, (dyn Any + Send)>,
-        MutBorrowed=MappedRwLockWriteGuard<'a, (dyn Any + Send)>,
-        Owned=Box<(dyn Any + Send)>,
-    > + Send),
-> {}
+unsafe impl Send
+    for BlackBox<
+        (dyn for<'a> Unit<
+            'a,
+            Borrowed = MappedRwLockReadGuard<'a, (dyn Any + Send)>,
+            MutBorrowed = MappedRwLockWriteGuard<'a, (dyn Any + Send)>,
+            Owned = Box<(dyn Any + Send)>,
+        > + Send),
+    >
+{
+}
 
-unsafe impl Sync for BlackBox<
-    (dyn for<'a> Unit<
-        'a,
-        Borrowed=MappedRwLockReadGuard<'a, (dyn Any + Send)>,
-        MutBorrowed=MappedRwLockWriteGuard<'a, (dyn Any + Send)>,
-        Owned=Box<(dyn Any + Send)>,
-    > + Send),
-> {}
+unsafe impl Sync
+    for BlackBox<
+        (dyn for<'a> Unit<
+            'a,
+            Borrowed = MappedRwLockReadGuard<'a, (dyn Any + Send)>,
+            MutBorrowed = MappedRwLockWriteGuard<'a, (dyn Any + Send)>,
+            Owned = Box<(dyn Any + Send)>,
+        > + Send),
+    >
+{
+}

@@ -1,4 +1,4 @@
-use restor::{RwLockStorage, ErrorDesc};
+use restor::{ErrorDesc, RwLockStorage};
 
 #[test]
 fn instantiate() {
@@ -60,7 +60,8 @@ fn borrow_twice_mut() {
     let y = x.get_mut::<usize>();
     assert!(y.is_ok());
     let z = x.get_mut::<usize>();
-    if let Err(ErrorDesc::BorrowedIncompatibly) = z {} else {
+    if let Err(ErrorDesc::BorrowedIncompatibly) = z {
+    } else {
         panic!();
     }
 }
@@ -142,14 +143,15 @@ fn ind_mut() {
         }
         let z = x.ind_mut::<usize>(1);
         assert!(z.is_err());
-        if let Err(ErrorDesc::BorrowedIncompatibly) = z {} else {
+        if let Err(ErrorDesc::BorrowedIncompatibly) = z {
+        } else {
             panic!("{:?}", *z.unwrap())
         }
     }
 }
 mod concurrent {
+    use restor::{ErrorDesc, RwLockStorage};
     use std::sync::Arc;
-    use restor::{RwLockStorage, ErrorDesc};
     use std::thread::spawn;
     use std::time::Duration;
 
@@ -161,8 +163,7 @@ mod concurrent {
         assert!(x.insert(0usize).is_none());
         assert!(x.insert(1usize).is_none());
         let xc = x.clone();
-        let t = spawn(move ||
-        {
+        let t = spawn(move || {
             let y = (&*xc).ind::<usize>(0);
             assert!(y.is_ok());
             if let Ok(z) = y {
@@ -171,8 +172,7 @@ mod concurrent {
         });
         t.join();
         let xc = x.clone();
-        let t = spawn(move ||
-        {
+        let t = spawn(move || {
             let y = (&*xc).ind::<usize>(1);
             assert!(y.is_ok());
             if let Ok(z) = y {
@@ -181,8 +181,7 @@ mod concurrent {
         });
         t.join();
         let xc = x.clone();
-        let t1 = spawn(move ||
-        {
+        let t1 = spawn(move || {
             let y = xc.ind::<usize>(0);
             assert!(y.is_ok());
             if let Ok(z) = y {
@@ -190,8 +189,7 @@ mod concurrent {
             }
             std::thread::sleep(Duration::from_millis(240));
         });
-        let t2 = spawn(move ||
-        {
+        let t2 = spawn(move || {
             std::thread::sleep(Duration::from_millis(200));
             let z = x.ind::<usize>(1);
             assert!(z.is_ok());
@@ -211,25 +209,23 @@ mod concurrent {
         let xc = x.clone();
         assert!(x.insert(0usize).is_none());
         assert!(x.insert(1usize).is_none());
-        let t = spawn(move ||
-            {
-                let y = xc.ind_mut::<usize>(0);
-                assert!(y.is_ok());
-                if let Ok(mut z) = y {
-                    assert_eq!(*z, 0usize);
-                    *z = 10;
-                }
-            });
+        let t = spawn(move || {
+            let y = xc.ind_mut::<usize>(0);
+            assert!(y.is_ok());
+            if let Ok(mut z) = y {
+                assert_eq!(*z, 0usize);
+                *z = 10;
+            }
+        });
         t.join();
         let xc = x.clone();
-        let t = spawn(move ||
-            {
-                let y = xc.ind_mut::<usize>(1);
-                assert!(y.is_ok());
-                if let Ok(z) = y {
-                    assert_eq!(*z, 1usize);
-                }
-            });
+        let t = spawn(move || {
+            let y = xc.ind_mut::<usize>(1);
+            assert!(y.is_ok());
+            if let Ok(z) = y {
+                assert_eq!(*z, 1usize);
+            }
+        });
         let xc = <Arc<RwLockStorage> as Clone>::clone(&x);
         let t1 = spawn(move || {
             let y = xc.ind_mut::<usize>(0);
@@ -243,7 +239,8 @@ mod concurrent {
             std::thread::sleep(Duration::from_millis(200));
             let z = (&*x).ind_mut::<usize>(1);
             assert!(z.is_err());
-            if let Err(ErrorDesc::BorrowedIncompatibly) = z {} else {
+            if let Err(ErrorDesc::BorrowedIncompatibly) = z {
+            } else {
                 panic!("{:?}", *z.unwrap())
             }
         });
@@ -251,4 +248,3 @@ mod concurrent {
         t2.join();
     }
 }
-

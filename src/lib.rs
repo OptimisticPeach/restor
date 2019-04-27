@@ -28,7 +28,7 @@ mod black_box;
 mod concurrent_black_box;
 
 pub type MutexStorage = BlackBox<
-(dyn for<'a> Unit<
+    (dyn for<'a> Unit<
         'a,
         Borrowed = MappedMutexGuard<'a, (dyn Any + Send)>,
         MutBorrowed = MappedMutexGuard<'a, (dyn Any + Send)>,

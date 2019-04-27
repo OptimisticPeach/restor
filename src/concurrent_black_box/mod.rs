@@ -202,7 +202,10 @@ impl<'a, T: 'static + Send> Unit<'a> for RwLockUnit<StorageUnit<T>> {
             Err(ErrorDesc::BorrowedIncompatibly)
         }
     }
-    fn ind_mut(&'a self, ind: usize) -> DynamicResult<MappedRwLockWriteGuard<'a, (dyn Any + Send)>> {
+    fn ind_mut(
+        &'a self,
+        ind: usize,
+    ) -> DynamicResult<MappedRwLockWriteGuard<'a, (dyn Any + Send)>> {
         if let Some(nx) = self.inner.try_write() {
             match nx.many() {
                 Ok(slice) => match slice.get(ind) {

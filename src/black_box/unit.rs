@@ -167,9 +167,7 @@ impl<T: Sized> StorageUnit<T> {
     pub fn extract_one(&mut self) -> DynamicResult<T> {
         match self {
             StorageUnit::Nope => Err(ErrorDesc::Unit(UnitError::IsNotOne)),
-            StorageUnit::Many(x) => {
-                Ok(x.remove(0))
-            },
+            StorageUnit::Many(x) => Ok(x.remove(0)),
             StorageUnit::One(_) => {
                 let mut repl = StorageUnit::Nope;
                 swap(&mut repl, self);
@@ -193,7 +191,7 @@ impl<T: Sized> StorageUnit<T> {
                 } else {
                     unreachable!()
                 }
-            },
+            }
             StorageUnit::Many(_) => {
                 let mut repl = StorageUnit::Nope;
                 swap(&mut repl, self);

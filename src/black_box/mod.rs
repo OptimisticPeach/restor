@@ -115,26 +115,31 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
         }
     }
 
-    pub fn insert<T: 'static + Send>(&self, data: T) -> Option<(T, ErrorDesc)> {
+    #[inline]
+    pub fn has_unit<T: 'static + Send>(&self) -> bool {
+        self.data.contains_key(&TypeId::of::<T>())
+    }
+
+    pub fn insert<T: 'static + Send>(&self, data: T) -> Result<(), (T, ErrorDesc)> {
         let entry = self.data.get(&TypeId::of::<T>());
         match entry {
             Some(x) => match x.insert_any(Box::new(data)) {
-                Some((x, e)) => Some((*x.downcast().unwrap(), e)),
-                None => None,
+                Some((x, e)) => Err((*x.downcast().unwrap(), e)),
+                None => Ok(()),
             },
-            None => Some((data, ErrorDesc::NoAllocatedUnit)),
+            None => Err((data, ErrorDesc::NoAllocatedUnit)),
         }
     }
 
-    pub fn insert_many<T: 'static + Send>(&self, data: Vec<T>) -> Option<(Vec<T>, ErrorDesc)> {
+    pub fn insert_many<T: 'static + Send>(&self, data: Vec<T>) -> Result<(), (Vec<T>, ErrorDesc)> {
         if let Some(unit) = self.data.get(&TypeId::of::<T>()) {
             if let Some((ret, e)) = unit.insert_any(Box::new(data)) {
-                Some((*ret.downcast().unwrap(), e))
+                Err((*ret.downcast().unwrap(), e))
             } else {
-                None
+                Ok(())
             }
         } else {
-            Some((data, ErrorDesc::NoAllocatedUnit))
+            Err((data, ErrorDesc::NoAllocatedUnit))
         }
     }
 
@@ -218,6 +223,17 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
             unused: Default::default(),
         }
     }
+    #[inline]
+    pub fn iter_mut<'a, T: 'static + Send>(&'a self) -> DynamicIterMut<'a, T, U>
+        where
+            Borrowed<'a, U>: Map<(dyn Any + Send), T, Func=for<'b> fn(&'b (dyn Any + Send)) -> &'b T>,
+    {
+        DynamicIterMut {
+            ind: 0,
+            black_box: self,
+            unused: Default::default(),
+        }
+    }
 }
 
 pub struct DynamicIter<'a, T: 'static + Send, U: ?Sized + for<'b> Unit<'b>> {
@@ -273,7 +289,7 @@ impl
 {
     #[inline]
     pub fn allocate_for<T: 'static + Send>(&mut self) {
-        if !self.data.contains_key(&TypeId::of::<T>()) {
+        if !self.has_unit::<T>() {
             self.data.insert(
                 TypeId::of::<T>(),
                 Box::new(RwLockUnit::new(StorageUnit::<T>::new())),

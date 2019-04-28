@@ -1,5 +1,5 @@
 # restor
-A dyamic resource storage written in rust. It supports storage of multiple types and multiple entries and dynamic borrow checking with the help of [`RefCell`](https://doc.rust-lang.org/std/cell/struct.RefCell.html)s, [`Mutex`](https://docs.rs/parking_lot/0.7.1/parking_lot/type.Mutex.html)s and [`RwLock`](https://docs.rs/parking_lot/0.7.1/parking_lot/type.RwLock.html)s from [`parking_lot`](https://docs.rs/parking_lot/0.7.1/parking_lot/index.html).  
+A dyamic resource storage written in rust. It supports storage of multiple types and multiple entries and dynamic borrow checking with the help of [`RefCell`](https://doc.rust-lang.org/std/cell/struct.RefCell.html)s, [`Mutex`](https://docs.rs/parking_lot/0.7.1/parking_lot/type.Mutex.html)s and [`RwLock`](https://docs.rs/parking_lot/0.7.1/parking_lot/type.RwLock.html)s from [`parking_lot`](https://docs.rs/parking_lot/0.7.1/parking_lot/index.html).   
 
 ## Example:
 ```rust
@@ -14,17 +14,17 @@ fn main() {
     storage.insert_many(vec![1usize, 2, 3]);
     storage.insert("abc".to_string());
 
-    for i in 0..4 {
-        let mut string_accquisition = storage.get_mut::<String>();
-        *string_accquisition = format!("{}, {}", &*string_accquisition, *storage.ind::<usize>(i));
+    for i in storage.iter::<usize>() {
+        let mut text = storage.get_mut::<String>().unwrap();
+        *text = format!("{}, {}", &*text, *i);
     }
 
-    assert_eq!(&*storage.get::<String>(), "abc, 0, 1, 2, 3");
+    assert_eq!(&*storage.get::<String>().unwrap(), "abc, 0, 1, 2, 3");
 }
 ```
 
 ## How it works:
-`BlackBox` (Or `DynamicStorage`) is defined as so:
+`BlackBox` (Or `DynamicStorage`) is defined as so (More or less):
 ```rust
 struct BlackBox {
     data: HashMap<TypeId, Box<dyn Unit>>
@@ -35,16 +35,16 @@ The `Unit` trait allows us to abstract over the generic type of the container (R
 2. Boxed into a  `Box<dyn Any>`
 3. Passed to the `StorageUnit as dyn Unit`
 4. Try to downcast as either a `T` or a `Vec<T>`
-5. Pur inro its own place in the storage or in a `Vec`
+5. Pur into its own place in the storage or in a `Vec`
 
 ## What's coming up:
 - [x] A multithreaded version
 - A more ergonomic api
-  - The ability to pass a `Fn` to run on a piece of data or a slice
-    - Callbacks in general
-  - The ability to iterate over a unit's contents
+  - Callbacks in general
+    - The ability to pass a `Fn(&mut [T])` to run on a piece of data or a slice
+  [x] The ability to iterate over a unit's contents
   - The ability to get a reference to the inner `Unit`
-  - The ability to check if there is a unit attached to a type
-    - The ability to insert a piece of data without worrying about the unit
-  - (Very unlikely) The ability to only borrow a part of the storage in the case of multiple items
+  [x] The ability to check if there is a unit attached to a type
+  - The ability to insert a piece of data without worrying about the unit
+  - Add/get an item without worrying about errors, panic instead, and include `try_*` functions
 - A passthrough hasher to avoid the unnecessary hashing of the `TypeId`

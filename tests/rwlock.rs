@@ -29,21 +29,21 @@ fn register_repeated() {
 fn insert() {
     let mut x = RwLockStorage::new();
     x.allocate_for::<usize>();
-    assert!(x.insert(0usize).is_none());
+    x.insert(0usize).unwrap();
 }
 
 #[test]
 fn insert_non_registered() {
     let mut x = RwLockStorage::new();
     x.allocate_for::<usize>();
-    assert_eq!(x.insert(0isize), Some((0isize, ErrorDesc::NoAllocatedUnit)));
+    assert_eq!(x.insert(0isize), Err((0isize, ErrorDesc::NoAllocatedUnit)));
 }
 
 #[test]
 fn borrow_twice_im() {
     let mut x = RwLockStorage::new();
     x.allocate_for::<usize>();
-    assert!(x.insert(0usize).is_none());
+    x.insert(0usize).unwrap();
     let y = x.get::<usize>();
     assert!(y.is_ok());
     let z = x.get::<usize>();
@@ -56,7 +56,7 @@ fn borrow_twice_im() {
 fn borrow_twice_mut() {
     let mut x = RwLockStorage::new();
     x.allocate_for::<usize>();
-    assert!(x.insert(0usize).is_none());
+    x.insert(0usize).unwrap();
     let y = x.get_mut::<usize>();
     assert!(y.is_ok());
     let z = x.get_mut::<usize>();
@@ -70,8 +70,8 @@ fn borrow_twice_mut() {
 fn ind() {
     let mut x = RwLockStorage::new();
     x.allocate_for::<usize>();
-    assert!(x.insert(0usize).is_none());
-    assert!(x.insert(1usize).is_none());
+    x.insert(0usize).unwrap();
+    x.insert(1usize).unwrap();
     let y = x.ind::<usize>(0);
     let indexed = x.ind::<usize>(0);
     assert!(indexed.is_ok());
@@ -84,8 +84,8 @@ fn ind() {
 fn ind_many() {
     let mut x = RwLockStorage::new();
     x.allocate_for::<usize>();
-    assert!(x.insert(0usize).is_none());
-    assert!(x.insert(1usize).is_none());
+    x.insert(0usize).unwrap();
+    x.insert(1usize).unwrap();
     {
         let y = x.ind::<usize>(0);
         assert!(y.is_ok());
@@ -118,8 +118,8 @@ fn ind_many() {
 fn ind_mut() {
     let mut x = RwLockStorage::new();
     x.allocate_for::<usize>();
-    assert!(x.insert(0usize).is_none());
-    assert!(x.insert(1usize).is_none());
+    x.insert(0usize).unwrap();
+    x.insert(1usize).unwrap();
     {
         let y = x.ind_mut::<usize>(0);
         assert!(y.is_ok());
@@ -150,6 +150,7 @@ fn ind_mut() {
     }
 }
 mod concurrent {
+    use parking_lot::MappedRwLockReadGuard;
     use restor::{ErrorDesc, RwLockStorage};
     use std::sync::Arc;
     use std::thread::spawn;
@@ -160,8 +161,8 @@ mod concurrent {
         let mut x = RwLockStorage::new();
         x.allocate_for::<usize>();
         let x = Arc::new(x);
-        assert!(x.insert(0usize).is_none());
-        assert!(x.insert(1usize).is_none());
+        x.insert(0usize).unwrap();
+        x.insert(1usize).unwrap();
         let xc = x.clone();
         let t = spawn(move || {
             let y = (&*xc).ind::<usize>(0);
@@ -207,44 +208,31 @@ mod concurrent {
         x.allocate_for::<usize>();
         let x = Arc::new(x);
         let xc = x.clone();
-        assert!(x.insert(0usize).is_none());
-        assert!(x.insert(1usize).is_none());
+        x.insert(0usize).unwrap();
+        x.insert(1usize).unwrap();
         let t = spawn(move || {
             let y = xc.ind_mut::<usize>(0);
-            assert!(y.is_ok());
-            if let Ok(mut z) = y {
-                assert_eq!(*z, 0usize);
-                *z = 10;
-            }
+            y.map(|m| *m)
         });
-        t.join();
+        t.join().unwrap();
         let xc = x.clone();
         let t = spawn(move || {
             let y = xc.ind_mut::<usize>(1);
-            assert!(y.is_ok());
-            if let Ok(z) = y {
-                assert_eq!(*z, 1usize);
-            }
+            y.map(|m| *m)
         });
+        t.join().unwrap();
         let xc = <Arc<RwLockStorage> as Clone>::clone(&x);
         let t1 = spawn(move || {
             let y = xc.ind_mut::<usize>(0);
-            assert!(y.is_ok());
-            if let Ok(z) = &y {
-                assert_eq!(**z, 10usize);
-            }
-            std::thread::sleep(Duration::from_millis(240));
+            std::thread::sleep(Duration::from_millis(200));
+            y.map(|m| *m)
         });
         let t2 = spawn(move || {
-            std::thread::sleep(Duration::from_millis(200));
-            let z = (&*x).ind_mut::<usize>(1);
-            assert!(z.is_err());
-            if let Err(ErrorDesc::BorrowedIncompatibly) = z {
-            } else {
-                panic!("{:?}", *z.unwrap())
-            }
+            std::thread::sleep(Duration::from_millis(100));
+            let z = x.ind_mut::<usize>(1);
+            z.map(|m| *m)
         });
-        t1.join();
-        t2.join();
+        t1.join().unwrap();
+        assert!(t2.join().is_err());
     }
 }

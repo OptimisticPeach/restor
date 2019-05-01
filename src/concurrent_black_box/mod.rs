@@ -135,6 +135,22 @@ impl<'a, T: 'static + Send> Unit<'a> for MutexUnit<StorageUnit<T>> {
             Some((new, ErrorDesc::BorrowedIncompatibly))
         }
     }
+    unsafe fn run_for(&self, (t, ptr): (TypeId, (*const (), *const ()))) -> Option<Box<dyn Any>> {
+        if t == TypeId::of::<dyn for<'b> Fn(DynamicResult<&'b [T]>) -> Option<Box<dyn Any>> + 'static>(
+        ) {
+            if let Some(x) = self.inner.try_lock() {
+                let func = std::mem::transmute::<
+                    _,
+                    &dyn for<'b> Fn(DynamicResult<&'b [T]>) -> Option<Box<dyn Any>>,
+                >(ptr);
+                func(x.many())
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
 
     fn id(&self) -> TypeId {
         TypeId::of::<T>()
@@ -273,6 +289,23 @@ impl<'a, T: 'static + Send> Unit<'a> for RwLockUnit<StorageUnit<T>> {
             }
         } else {
             Some((new, ErrorDesc::BorrowedIncompatibly))
+        }
+    }
+    unsafe fn run_for(&self, (t, ptr): (TypeId, (*const (), *const ()))) -> Option<Box<dyn Any>> {
+        if t == TypeId::of::<
+            (dyn for<'b> Fn(DynamicResult<&'b [T]>) -> Option<Box<dyn Any>> + 'static),
+        >() {
+            if let Some(x) = self.inner.try_read() {
+                let func = std::mem::transmute::<
+                    _,
+                    &dyn for<'b> Fn(DynamicResult<&'b [T]>) -> Option<Box<dyn Any>>,
+                >(ptr);
+                func(x.many())
+            } else {
+                None
+            }
+        } else {
+            None
         }
     }
 

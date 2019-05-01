@@ -29,21 +29,21 @@ fn register_repeated() {
 fn insert() {
     let mut x = DynamicStorage::new();
     x.allocate_for::<usize>();
-    assert!(x.insert(0usize).is_none());
+    x.insert(0usize).unwrap();
 }
 
 #[test]
 fn insert_non_registered() {
     let mut x = DynamicStorage::new();
     x.allocate_for::<usize>();
-    assert_eq!(x.insert(0isize), Some((0isize, ErrorDesc::NoAllocatedUnit)));
+    assert_eq!(x.insert(0isize), Err((0isize, ErrorDesc::NoAllocatedUnit)));
 }
 
 #[test]
 fn borrow_twice_im() {
     let mut x = DynamicStorage::new();
     x.allocate_for::<usize>();
-    assert!(x.insert(0usize).is_none());
+    x.insert(0usize).unwrap();
     let y = x.get::<usize>();
     assert!(y.is_ok());
     let z = x.get::<usize>();
@@ -56,7 +56,7 @@ fn borrow_twice_im() {
 fn borrow_twice_mut() {
     let mut x = DynamicStorage::new();
     x.allocate_for::<usize>();
-    assert!(x.insert(0usize).is_none());
+    x.insert(0usize).unwrap();
     let y = x.get_mut::<usize>();
     assert!(y.is_ok());
     let z = x.get_mut::<usize>();
@@ -70,8 +70,8 @@ fn borrow_twice_mut() {
 fn ind() {
     let mut x = DynamicStorage::new();
     x.allocate_for::<usize>();
-    assert!(x.insert(0usize).is_none());
-    assert!(x.insert(1usize).is_none());
+    x.insert(0usize).unwrap();
+    x.insert(1usize).unwrap();
     let y = x.ind::<usize>(0);
     let indexed = x.ind::<usize>(0);
     assert!(indexed.is_ok());
@@ -84,8 +84,8 @@ fn ind() {
 fn ind_many() {
     let mut x = DynamicStorage::new();
     x.allocate_for::<usize>();
-    assert!(x.insert(0usize).is_none());
-    assert!(x.insert(1usize).is_none());
+    x.insert(0usize).unwrap();
+    x.insert(1usize).unwrap();
     {
         let y = x.ind::<usize>(0);
         assert!(y.is_ok());
@@ -118,8 +118,8 @@ fn ind_many() {
 fn ind_mut() {
     let mut x = DynamicStorage::new();
     x.allocate_for::<usize>();
-    assert!(x.insert(0usize).is_none());
-    assert!(x.insert(1usize).is_none());
+    x.insert(0usize).unwrap();
+    x.insert(1usize).unwrap();
     {
         let y = x.ind_mut::<usize>(0);
         assert!(y.is_ok());

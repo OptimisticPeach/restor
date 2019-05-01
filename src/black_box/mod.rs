@@ -105,8 +105,8 @@ pub struct BlackBox<U: ?Sized> {
     data: HashMap<TypeId, Box<U>>,
 }
 
-type Borrowed<'a, T: Unit<'a>> = <T as Unit<'a>>::Borrowed;
-type MutBorrowed<'a, T: Unit<'a>> = <T as Unit<'a>>::MutBorrowed;
+type Borrowed<'a, T> = <T as Unit<'a>>::Borrowed;
+type MutBorrowed<'a, T> = <T as Unit<'a>>::MutBorrowed;
 
 impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
     pub fn new() -> Self {
@@ -225,13 +225,32 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
     }
     #[inline]
     pub fn iter_mut<'a, T: 'static + Send>(&'a self) -> DynamicIterMut<'a, T, U>
-        where
-            Borrowed<'a, U>: Map<(dyn Any + Send), T, Func=for<'b> fn(&'b (dyn Any + Send)) -> &'b T>,
+    where
+        Borrowed<'a, U>: Map<(dyn Any + Send), T, Func = for<'b> fn(&'b (dyn Any + Send)) -> &'b T>,
     {
         DynamicIterMut {
             ind: 0,
             black_box: self,
             unused: Default::default(),
+        }
+    }
+    #[inline]
+    pub fn run_for<'a, T: 'static + Send>(
+        &self,
+        f: &(dyn for<'b> Fn(DynamicResult<&'b [T]>) -> Option<Box<dyn Any>> + 'static),
+    ) -> Option<Box<dyn Any>> {
+        let ptr = unsafe { std::mem::transmute::<_, (*const (), *const ())>(f) };
+        let t = TypeId::of::<
+            (dyn for<'b> Fn(DynamicResult<&'b [T]>) -> Option<Box<dyn Any>> + 'static),
+        >();
+
+        unsafe {
+            let unit = self.unit_get::<T>();
+            if let Ok(x) = unit {
+                x.run_for((t, ptr))
+            } else {
+                None
+            }
         }
     }
 }

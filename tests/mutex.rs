@@ -32,21 +32,21 @@ fn register_repeated() {
 fn insert() {
     let mut x = MutexStorage::new();
     x.allocate_for::<usize>();
-    assert!(x.insert(0usize).is_none());
+    x.insert(0usize).unwrap();
 }
 
 #[test]
 fn insert_non_registered() {
     let mut x = MutexStorage::new();
     x.allocate_for::<usize>();
-    assert_eq!(x.insert(0isize), Some((0isize, ErrorDesc::NoAllocatedUnit)));
+    assert_eq!(x.insert(0isize), Err((0isize, ErrorDesc::NoAllocatedUnit)));
 }
 
 #[test]
 fn borrow_twice_mut() {
     let mut x = MutexStorage::new();
     x.allocate_for::<usize>();
-    assert!(x.insert(0usize).is_none());
+    x.insert(0usize).unwrap();
     let y = x.get_mut::<usize>();
     assert!(y.is_ok());
     let z = x.get_mut::<usize>();
@@ -60,8 +60,8 @@ fn borrow_twice_mut() {
 fn ind_mut() {
     let mut x = MutexStorage::new();
     x.allocate_for::<usize>();
-    assert!(x.insert(0usize).is_none());
-    assert!(x.insert(1usize).is_none());
+    x.insert(0usize).unwrap();
+    x.insert(1usize).unwrap();
     {
         let y = x.ind_mut::<usize>(0);
         assert!(y.is_ok());
@@ -98,8 +98,8 @@ fn concurrent_ind_mut() {
     x.allocate_for::<usize>();
     let x = Arc::new(x);
     let xc = x.clone();
-    assert!(x.insert(0usize).is_none());
-    assert!(x.insert(1usize).is_none());
+    x.insert(0usize).unwrap();
+    x.insert(1usize).unwrap();
     let t = spawn(move || {
         let y = xc.ind_mut::<usize>(0);
         assert!(y.is_ok());

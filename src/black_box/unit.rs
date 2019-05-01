@@ -233,6 +233,7 @@ pub trait Unit<'a> {
     fn extract_many(&self) -> DynamicResult<Self::Owned>;
 
     fn insert_any(&self, new: Self::Owned) -> Option<(Self::Owned, ErrorDesc)>;
+    unsafe fn run_for(&self, func: (TypeId, (*const (), *const ()))) -> Option<Box<dyn Any>>;
 
     fn id(&self) -> TypeId;
 }

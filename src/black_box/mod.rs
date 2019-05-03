@@ -33,6 +33,9 @@ pub type RwLockUnitTrait = for<'a> Unit<
     Owned = Box<(dyn Any + Send)>,
 >;
 
+/// A trait forcing the implentor to implement a `map` function
+/// this is used to genericize over `MappedMutexGuard` `MappedRwLock[Read,Write]Guard`
+/// and `Ref[Mut]`
 pub trait Map<I: ?Sized, O: ?Sized>: Deref<Target = I> + Sized {
     type Output: Deref<Target = O>;
     type Func: Sized + 'static;
@@ -66,7 +69,9 @@ impl<'a, I: 'static + Send + ?Sized, O: 'static + Send + ?Sized> Map<I, O>
         MappedRwLockReadGuard::map(self, f)
     }
 }
-
+/// A trait forcing the implentor to implement a `ma
+/// this is used to genericize over `MappedMutexGuar
+/// and `Ref[Mut]`
 pub trait MapMut<I: ?Sized, O: ?Sized>: Deref<Target = I> + Sized + DerefMut {
     type Output: Deref<Target = O> + DerefMut;
     type Func: Sized + 'static;
@@ -100,7 +105,27 @@ impl<'a, I: 'static + Send + ?Sized, O: 'static + Send + ?Sized> MapMut<I, O>
         MappedMutexGuard::map(self, f)
     }
 }
-
+///
+/// The base structure for this library, contains all of the
+/// dynamically typed storage units
+/// 
+/// This is the basis for this library. This should not be
+/// directly interacted with, and should instead be interfaced
+/// with the type alias at the root of this library:
+///
+/// * `DynamicStorage`:
+/// Based on `RefCell`s, for its interior mutability.
+/// This is _NOT_ `Send`, but it is faster, because it
+/// does not use atomic operations.
+/// * `MutexStorage`:
+/// Uses a `Mutex` for `Send` capabilites, and interior mutability
+/// This only exposes mutable getter methods, as there is only
+/// a `&mut` api available for a `MappedMutexGuard`
+/// * `RwLockStorage`:
+/// This exposes the same api as a `RefCell` but is atomically guarded
+/// and therefore guarantees a safe `Send`, while allowing multiple
+/// readers. 
+/// 
 pub struct BlackBox<U: ?Sized> {
     data: HashMap<TypeId, Box<U>>,
 }

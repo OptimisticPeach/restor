@@ -144,8 +144,7 @@ impl<'a, T: 'static + Send> Unit<'a> for RefCellUnit<StorageUnit<T>> {
     }
 
     unsafe fn run_for(&self, (t, ptr): (TypeId, (*const (), *const ()))) -> Option<Box<dyn Any>> {
-        if t == TypeId::of::<dyn Fn(DynamicResult<&[T]>) -> Option<Box<dyn Any>> + 'static>(
-        ) {
+        if t == TypeId::of::<dyn Fn(DynamicResult<&[T]>) -> Option<Box<dyn Any>> + 'static>() {
             if let Ok(x) = self.inner.try_borrow_mut() {
                 let func = std::mem::transmute::<
                     _,

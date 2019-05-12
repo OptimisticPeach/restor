@@ -1,9 +1,9 @@
+use owning_ref::Erased;
 use parking_lot::{MappedMutexGuard, MappedRwLockReadGuard, MappedRwLockWriteGuard};
 use std::any::{Any, TypeId};
 use std::cell::{Ref, RefMut};
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
-use owning_ref::Erased;
 
 mod unit;
 
@@ -149,7 +149,6 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
             data: HashMap::new(),
         }
     }
-
 
     ///
     /// Checks if there is an allocated unit for
@@ -330,9 +329,7 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
         f: &(dyn Fn(DynamicResult<&[T]>) -> Option<Box<dyn Any>> + 'static),
     ) -> Option<Box<dyn Any>> {
         let ptr = unsafe { std::mem::transmute::<_, (*const (), *const ())>(f) };
-        let t = TypeId::of::<
-            (dyn Fn(DynamicResult<&[T]>) -> Option<Box<dyn Any>> + 'static),
-        >();
+        let t = TypeId::of::<(dyn Fn(DynamicResult<&[T]>) -> Option<Box<dyn Any>> + 'static)>();
 
         unsafe {
             let unit = self.unit_get::<T>();
@@ -346,23 +343,41 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
 
     #[inline]
     pub fn iter<'a, T: 'static + Send>(&'a self) -> DynamicIter<'a, T>
-        where
-            Borrowed<'a, U>: Map<(dyn Any + Send), StorageUnit<T>, Func=for<'b> fn(&'b (dyn Any + Send)) -> &'b StorageUnit<T>>, {
+    where
+        Borrowed<'a, U>: Map<
+            (dyn Any + Send),
+            StorageUnit<T>,
+            Func = for<'b> fn(&'b (dyn Any + Send)) -> &'b StorageUnit<T>,
+        >,
+    {
         DynamicIter::new(self.data.get(&TypeId::of::<T>()).and_then(|bx| {
-            bx.storage()
-                .ok()
-                .map(|z| <Borrowed<'a, U> as Map<_, StorageUnit<T>>>::map(z, |k| k.downcast_ref().unwrap()))
+            bx.storage().ok().map(|z| {
+                <Borrowed<'a, U> as Map<_, StorageUnit<T>>>::map(z, |k| k.downcast_ref().unwrap())
+            })
         }))
     }
 
     #[inline]
-    pub fn iter_mut<'a, T: 'static + Send>(&'a self) -> DynamicIterMut<'a, T, <MutBorrowed<'a, U> as MapMut<(dyn Any + Send), StorageUnit<T>>>::Output>
-        where
-            MutBorrowed<'a, U>: MapMut<(dyn Any + Send), StorageUnit<T>, Func=for<'b> fn(&'b mut (dyn Any + Send)) -> &'b mut StorageUnit<T>>, {
+    pub fn iter_mut<'a, T: 'static + Send>(
+        &'a self,
+    ) -> DynamicIterMut<
+        'a,
+        T,
+        <MutBorrowed<'a, U> as MapMut<(dyn Any + Send), StorageUnit<T>>>::Output,
+    >
+    where
+        MutBorrowed<'a, U>: MapMut<
+            (dyn Any + Send),
+            StorageUnit<T>,
+            Func = for<'b> fn(&'b mut (dyn Any + Send)) -> &'b mut StorageUnit<T>,
+        >,
+    {
         DynamicIterMut::new(self.data.get(&TypeId::of::<T>()).and_then(|bx| {
-            bx.storage_mut()
-                .ok()
-                .map(|z| <MutBorrowed<'a, U> as MapMut<_, StorageUnit<T>>>::map(z, |k| k.downcast_mut().unwrap()))
+            bx.storage_mut().ok().map(|z| {
+                <MutBorrowed<'a, U> as MapMut<_, StorageUnit<T>>>::map(z, |k| {
+                    k.downcast_mut().unwrap()
+                })
+            })
         }))
     }
 }
@@ -394,8 +409,8 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
 /// ```
 ///
 pub struct DynamicIter<'a, T: 'static + Send> {
-    lock: Option<Box<dyn Deref<Target=StorageUnit<T>> + 'a>>,
-    ind: usize
+    lock: Option<Box<dyn Deref<Target = StorageUnit<T>> + 'a>>,
+    ind: usize,
 }
 
 impl<'a, T: 'static + Send> DynamicIter<'a, T> {
@@ -407,16 +422,10 @@ impl<'a, T: 'static + Send> DynamicIter<'a, T> {
                     ind: 0,
                 }
             } else {
-                Self {
-                    lock: None,
-                    ind: 0,
-                }
+                Self { lock: None, ind: 0 }
             }
         } else {
-            Self {
-                lock: None,
-                ind: 0,
-            }
+            Self { lock: None, ind: 0 }
         }
     }
 
@@ -454,33 +463,33 @@ impl<'a, T: 'static + Send> DynamicIter<'a, T> {
 /// # }
 /// ```
 ///
-pub struct DynamicIterMut<'a, T: 'static + Send, C: Deref<Target=StorageUnit<T>> + DerefMut> {
+pub struct DynamicIterMut<'a, T: 'static + Send, C: Deref<Target = StorageUnit<T>> + DerefMut> {
     lock: Option<C>,
     ind: usize,
-    unused: PhantomData<&'a T>
+    unused: PhantomData<&'a T>,
 }
 
-impl<'a, T: 'static + Send, C: Deref<Target=StorageUnit<T>> + DerefMut> DynamicIterMut<'a, T, C> {
+impl<'a, T: 'static + Send, C: Deref<Target = StorageUnit<T>> + DerefMut> DynamicIterMut<'a, T, C> {
     pub(crate) fn new(lock: Option<C>) -> Self {
         if let Some(mut x) = lock {
             if x.many_mut().is_ok() {
                 Self {
                     lock: Some(x),
                     ind: 0,
-                    unused: Default::default()
+                    unused: Default::default(),
                 }
             } else {
                 Self {
                     lock: None,
                     ind: 0,
-                    unused: Default::default()
+                    unused: Default::default(),
                 }
             }
         } else {
             Self {
                 lock: None,
                 ind: 0,
-                unused: Default::default()
+                unused: Default::default(),
             }
         }
     }

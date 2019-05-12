@@ -232,7 +232,7 @@ mod concurrent {
             let z = x.ind_mut::<usize>(1);
             z.map(|m| *m)
         });
-        t1.join().unwrap();
-        assert!(t2.join().is_err());
+        t1.join().unwrap().unwrap();
+        assert!(t2.join().unwrap().is_err());
     }
 }

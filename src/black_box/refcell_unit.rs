@@ -2,6 +2,7 @@ use std::any::{Any, TypeId};
 use std::cell::{Ref, RefCell, RefMut};
 
 use super::*;
+use crate::black_box::unit::ErrorDesc::BorrowedIncompatibly;
 
 pub struct RefCellUnit<T> {
     pub(crate) inner: RefCell<T>,
@@ -22,7 +23,7 @@ impl<'a, T: 'static + Send> Unit<'a> for RefCellUnit<StorageUnit<T>> {
     type MutBorrowed = RefMut<'a, (dyn Any + Send)>;
     type Owned = Box<(dyn Any + Send)>;
     fn one(&'a self) -> DynamicResult<Ref<'a, (dyn Any + Send)>> {
-        if let Some(nx) = self.inner.try_borrow().ok() {
+        if let Ok(nx) = self.inner.try_borrow() {
             match nx.one() {
                 Ok(_) => Ok(Ref::map(nx, |nx| &*nx.one().unwrap())),
                 Err(e) => Err(e),
@@ -32,7 +33,7 @@ impl<'a, T: 'static + Send> Unit<'a> for RefCellUnit<StorageUnit<T>> {
         }
     }
     fn one_mut(&'a self) -> DynamicResult<RefMut<'a, (dyn Any + Send)>> {
-        if let Some(mut nx) = self.inner.try_borrow_mut().ok() {
+        if let Ok(mut nx) = self.inner.try_borrow_mut() {
             match nx.one_mut() {
                 Ok(_) => Ok(RefMut::map(nx, |nx| &mut *nx.one_mut().unwrap())),
                 Err(e) => Err(e),
@@ -43,7 +44,7 @@ impl<'a, T: 'static + Send> Unit<'a> for RefCellUnit<StorageUnit<T>> {
     }
 
     fn ind(&'a self, ind: usize) -> DynamicResult<Ref<'a, (dyn Any + Send)>> {
-        if let Some(nx) = self.inner.try_borrow().ok() {
+        if let Ok(nx) = self.inner.try_borrow() {
             match nx.many() {
                 Ok(slice) => match slice.get(ind) {
                     Some(_) => Ok(Ref::map(nx, |nx| &*nx.many().unwrap().get(ind).unwrap())),
@@ -56,7 +57,7 @@ impl<'a, T: 'static + Send> Unit<'a> for RefCellUnit<StorageUnit<T>> {
         }
     }
     fn ind_mut(&'a self, ind: usize) -> DynamicResult<RefMut<'a, (dyn Any + Send)>> {
-        if let Some(mut nx) = self.inner.try_borrow_mut().ok() {
+        if let Ok(mut nx) = self.inner.try_borrow_mut() {
             match nx.many_mut() {
                 Ok(slice) => match slice.get_mut(ind) {
                     Some(_) => Ok(RefMut::map(nx, |nx| {
@@ -72,7 +73,7 @@ impl<'a, T: 'static + Send> Unit<'a> for RefCellUnit<StorageUnit<T>> {
     }
 
     fn extract(&self) -> DynamicResult<Box<(dyn Any + Send)>> {
-        if let Some(mut x) = self.inner.try_borrow_mut().ok() {
+        if let Ok(mut x) = self.inner.try_borrow_mut() {
             match x.extract_one() {
                 Ok(x) => Ok(Box::new(x)),
                 Err(e) => Err(e),
@@ -82,7 +83,7 @@ impl<'a, T: 'static + Send> Unit<'a> for RefCellUnit<StorageUnit<T>> {
         }
     }
     fn extract_ind(&self, ind: usize) -> DynamicResult<Box<(dyn Any + Send)>> {
-        if let Some(mut borrowed) = self.inner.try_borrow_mut().ok() {
+        if let Ok(mut borrowed) = self.inner.try_borrow_mut() {
             borrowed.many_mut().and_then(|x| {
                 if ind < x.len() {
                     let x: Box<(dyn Any + Send)> = Box::new(x.remove(ind));
@@ -106,13 +107,15 @@ impl<'a, T: 'static + Send> Unit<'a> for RefCellUnit<StorageUnit<T>> {
 
     fn insert_any(&self, new: Box<(dyn Any + Send)>) -> Option<(Box<(dyn Any + Send)>, ErrorDesc)> {
         let newtype = new.type_id();
-        if let Some(mut x) = self.inner.try_borrow_mut().ok() {
+        if let Ok(mut x) = self.inner.try_borrow_mut() {
             if new.is::<T>() {
-                x.insert(*new.downcast::<T>().expect(&format!(
-                    "Tried to insert an object with type {:?} into a storage of type {:?}",
-                    newtype,
-                    TypeId::of::<T>()
-                )));
+                x.insert(*new.downcast::<T>().unwrap_or_else(|_| {
+                    panic!(
+                        "Tried to insert an object with type {:?} into a storage of type {:?}",
+                        newtype,
+                        TypeId::of::<T>()
+                    )
+                }));
                 None
             } else if new.is::<Vec<T>>() {
                 x.insert_many(*new.downcast::<Vec<T>>().unwrap());
@@ -125,13 +128,28 @@ impl<'a, T: 'static + Send> Unit<'a> for RefCellUnit<StorageUnit<T>> {
         }
     }
 
+    fn storage(&'a self) -> DynamicResult<Ref<'a, (dyn Any + Send)>> {
+        self.inner
+            .try_borrow()
+            .ok()
+            .map(|x| Ref::map::<(dyn Any + Send), _>(x, |z| &*z))
+            .ok_or(BorrowedIncompatibly)
+    }
+    fn storage_mut(&'a self) -> DynamicResult<RefMut<'a, (dyn Any + Send)>> {
+        self.inner
+            .try_borrow_mut()
+            .ok()
+            .map(|x| RefMut::map::<(dyn Any + Send), _>(x, |z| &mut *z))
+            .ok_or(BorrowedIncompatibly)
+    }
+
     unsafe fn run_for(&self, (t, ptr): (TypeId, (*const (), *const ()))) -> Option<Box<dyn Any>> {
-        if t == TypeId::of::<dyn for<'b> Fn(DynamicResult<&'b [T]>) -> Option<Box<dyn Any>> + 'static>(
+        if t == TypeId::of::<dyn Fn(DynamicResult<&[T]>) -> Option<Box<dyn Any>> + 'static>(
         ) {
-            if let Some(x) = self.inner.try_borrow_mut().ok() {
+            if let Ok(x) = self.inner.try_borrow_mut() {
                 let func = std::mem::transmute::<
                     _,
-                    &dyn for<'b> Fn(DynamicResult<&'b [T]>) -> Option<Box<dyn Any>>,
+                    &dyn Fn(DynamicResult<&[T]>) -> Option<Box<dyn Any>>,
                 >(ptr);
                 func(x.many())
             } else {

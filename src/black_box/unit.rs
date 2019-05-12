@@ -94,13 +94,13 @@ impl<T: Sized> StorageUnit<T> {
         }
     }
 
-    pub fn insert_many(&mut self, new: Vec<T>) {
+    pub fn insert_many(&mut self, mut new: Vec<T>) {
         match self {
             StorageUnit::Nope => {
-                *self = StorageUnit::Many(new.into());
+                *self = StorageUnit::Many(new);
             }
             StorageUnit::One(_) => {
-                let mut rep = StorageUnit::Many(new.into());
+                let mut rep = StorageUnit::Many(new);
                 swap(&mut rep, self);
                 if let StorageUnit::One(val) = rep {
                     if let StorageUnit::Many(vec) = self {
@@ -113,7 +113,7 @@ impl<T: Sized> StorageUnit<T> {
                 }
             }
             StorageUnit::Many(arr) => {
-                arr.append(&mut new.into());
+                arr.append(&mut new);
             }
         }
     }
@@ -207,6 +207,12 @@ impl<T: Sized> StorageUnit<T> {
     }
 }
 
+impl<T> Default for StorageUnit<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T: Clone> Clone for StorageUnit<T> {
     fn clone(&self) -> Self {
         match self {
@@ -234,6 +240,9 @@ pub trait Unit<'a> {
 
     fn insert_any(&self, new: Self::Owned) -> Option<(Self::Owned, ErrorDesc)>;
     unsafe fn run_for(&self, func: (TypeId, (*const (), *const ()))) -> Option<Box<dyn Any>>;
+
+    fn storage(&'a self) -> DynamicResult<Self::Borrowed>;
+    fn storage_mut(&'a self) -> DynamicResult<Self::MutBorrowed>;
 
     fn id(&self) -> TypeId;
 }

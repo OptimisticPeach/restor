@@ -18,7 +18,7 @@
 //! let mut my_string = storage.get_mut::<String>().unwrap();
 //! storage.insert_many::<usize>(vec![2, 4, 8, 16, 32]);
 //! for i in 0..5 {
-//!     *my_string = format!("{:?}, {:?}", *my_string, *storage.ind::<usize>(i).unwrap());
+//!     *my_string = format!("{}, {:?}", &*my_string, *storage.ind::<usize>(i).unwrap());
 //! }
 //! assert_eq!("abc, 2, 4, 8, 16, 32", &*my_string);
 //! # }

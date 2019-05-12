@@ -3,6 +3,7 @@ use std::any::{Any, TypeId};
 use std::cell::{Ref, RefMut};
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
+use owning_ref::Erased;
 
 mod unit;
 
@@ -33,9 +34,9 @@ pub type RwLockUnitTrait = for<'a> Unit<
     Owned = Box<(dyn Any + Send)>,
 >;
 
-/// A trait forcing the implentor to implement a `map` function
-/// this is used to genericize over `MappedMutexGuard` `MappedRwLock[Read,Write]Guard`
-/// and `Ref[Mut]`
+/// A trait forcing the implementor to implement a `map` function
+/// this is used to genericize over `MappedMutexGuard`,
+/// `MappedRwLockReadGuard` and `Ref`
 pub trait Map<I: ?Sized, O: ?Sized>: Deref<Target = I> + Sized {
     type Output: Deref<Target = O>;
     type Func: Sized + 'static;
@@ -69,9 +70,9 @@ impl<'a, I: 'static + Send + ?Sized, O: 'static + Send + ?Sized> Map<I, O>
         MappedRwLockReadGuard::map(self, f)
     }
 }
-/// A trait forcing the implentor to implement a `ma
-/// this is used to genericize over `MappedMutexGuar
-/// and `Ref[Mut]`
+/// A trait forcing the implementor to implement a `map` method
+/// this is used to genericize over `MappedMutexGuard` and
+/// `MappedRwLockWriteGuard` and `RefMut`
 pub trait MapMut<I: ?Sized, O: ?Sized>: Deref<Target = I> + Sized + DerefMut {
     type Output: Deref<Target = O> + DerefMut;
     type Func: Sized + 'static;
@@ -108,7 +109,7 @@ impl<'a, I: 'static + Send + ?Sized, O: 'static + Send + ?Sized> MapMut<I, O>
 ///
 /// The base structure for this library, contains all of the
 /// dynamically typed storage units
-/// 
+///
 /// This is the basis for this library. This should not be
 /// directly interacted with, and should instead be interfaced
 /// with the type alias at the root of this library:
@@ -124,8 +125,14 @@ impl<'a, I: 'static + Send + ?Sized, O: 'static + Send + ?Sized> MapMut<I, O>
 /// * `RwLockStorage`:
 /// This exposes the same api as a `RefCell` but is atomically guarded
 /// and therefore guarantees a safe `Send`, while allowing multiple
-/// readers. 
-/// 
+/// readers.
+///
+/// The type parameter `U` is the `Unit` that is going to be used to store
+/// the data that is placed into it. This type parameter should, once
+/// again be avoided by the user, and should instead use the
+/// type definitions that are noted above.
+///
+#[derive(Default)]
 pub struct BlackBox<U: ?Sized> {
     data: HashMap<TypeId, Box<U>>,
 }
@@ -134,17 +141,72 @@ type Borrowed<'a, T> = <T as Unit<'a>>::Borrowed;
 type MutBorrowed<'a, T> = <T as Unit<'a>>::MutBorrowed;
 
 impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
+    ///
+    /// A default implementation of `BlackBox`
+    ///
     pub fn new() -> Self {
         Self {
             data: HashMap::new(),
         }
     }
 
+
+    ///
+    /// Checks if there is an allocated unit for
+    /// the type parameter in the internal hashmap.
+    ///
+    /// # Example
+    /// ```
+    /// # fn main() {
+    /// use restor::DynamicStorage;
+    /// let mut storage = DynamicStorage::new();
+    /// assert!(!storage.has_unit::<usize>());
+    /// storage.allocate_for::<usize>();
+    /// assert!(storage.has_unit::<usize>());
+    /// # }
+    /// ```
     #[inline]
     pub fn has_unit<T: 'static + Send>(&self) -> bool {
         self.data.contains_key(&TypeId::of::<T>())
     }
 
+    ///
+    /// Inserts a value into the storage and returns it in the case
+    /// that it's impossible to insert or it is already borrowed.
+    ///
+    /// This appends to a list of values in the case that there is
+    /// one or values of the type in the internal storage.
+    ///
+    /// # Example
+    /// ```
+    /// # fn main() {
+    /// use restor::{DynamicStorage, ErrorDesc};
+    /// let mut storage = DynamicStorage::new();
+    /// assert_eq!(storage.insert(0usize), Err((0usize, ErrorDesc::NoAllocatedUnit)));
+    /// storage.allocate_for::<usize>();
+    /// storage.insert(0usize).unwrap();
+    /// # }
+    /// ```
+    ///
+    /// # Example 2: Appending
+    /// ```
+    /// # fn main() {
+    /// use restor::{DynamicStorage, ErrorDesc};
+    /// let mut storage = DynamicStorage::new();
+    /// storage.allocate_for::<usize>();
+    /// storage.insert(0usize).unwrap();
+    /// storage.insert(1usize).unwrap();
+    /// storage.insert(2usize).unwrap();
+    /// storage.run_for::<usize>(&|x| {
+    ///     assert_eq!(x.unwrap().len(), 3);
+    ///     None
+    /// });
+    /// # }
+    /// ```
+    ///
+    /// ## Note
+    /// This returns a `Result<(), (T, ErrorDesc)>` for ease of use, with calling `.unwrap()`.
+    ///
     pub fn insert<T: 'static + Send>(&self, data: T) -> Result<(), (T, ErrorDesc)> {
         let entry = self.data.get(&TypeId::of::<T>());
         match entry {
@@ -156,6 +218,31 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
         }
     }
 
+    ///
+    /// Sibling to `insert`, this inserts many values at the same time and returns them
+    /// in the case of an error. This will append to a pre-exisiting dataset if there
+    /// is one present, or a single value, if possible.
+    ///
+    /// # Example
+    /// ```
+    /// # fn main() {
+    /// use restor::{DynamicStorage, ErrorDesc};
+    /// let mut storage = DynamicStorage::new();
+    /// assert_eq!(storage.insert_many(vec![0usize, 1, 2, 3]), Err((vec![0usize, 1, 2, 3], ErrorDesc::NoAllocatedUnit)));
+    /// storage.allocate_for::<usize>();
+    /// storage.insert_many(vec![0usize, 1, 2, 3]).unwrap();
+    /// storage.insert_many(vec![4usize, 5, 6, 7]).unwrap();
+    /// storage.run_for::<usize>(&|x| {
+    ///     assert_eq!(x.unwrap(), &[0usize, 1, 2, 3, 4, 5, 6, 7]);
+    ///     None
+    /// });
+    /// # }
+    /// ```
+    ///
+    /// ## Note
+    /// This returns the `Vec` passed to it in the case of an erroneous attempt
+    /// at inserting into the storage.
+    ///
     pub fn insert_many<T: 'static + Send>(&self, data: Vec<T>) -> Result<(), (Vec<T>, ErrorDesc)> {
         if let Some(unit) = self.data.get(&TypeId::of::<T>()) {
             if let Some((ret, e)) = unit.insert_any(Box::new(data)) {
@@ -238,35 +325,13 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
             .map(|x| x.downcast_ref().unwrap()))
     }
     #[inline]
-    pub fn iter<'a, T: 'static + Send>(&'a self) -> DynamicIter<'a, T, U>
-    where
-        Borrowed<'a, U>: Map<(dyn Any + Send), T, Func = for<'b> fn(&'b (dyn Any + Send)) -> &'b T>,
-    {
-        DynamicIter {
-            ind: 0,
-            black_box: self,
-            unused: Default::default(),
-        }
-    }
-    #[inline]
-    pub fn iter_mut<'a, T: 'static + Send>(&'a self) -> DynamicIterMut<'a, T, U>
-    where
-        Borrowed<'a, U>: Map<(dyn Any + Send), T, Func = for<'b> fn(&'b (dyn Any + Send)) -> &'b T>,
-    {
-        DynamicIterMut {
-            ind: 0,
-            black_box: self,
-            unused: Default::default(),
-        }
-    }
-    #[inline]
-    pub fn run_for<'a, T: 'static + Send>(
+    pub fn run_for<T: 'static + Send>(
         &self,
-        f: &(dyn for<'b> Fn(DynamicResult<&'b [T]>) -> Option<Box<dyn Any>> + 'static),
+        f: &(dyn Fn(DynamicResult<&[T]>) -> Option<Box<dyn Any>> + 'static),
     ) -> Option<Box<dyn Any>> {
         let ptr = unsafe { std::mem::transmute::<_, (*const (), *const ())>(f) };
         let t = TypeId::of::<
-            (dyn for<'b> Fn(DynamicResult<&'b [T]>) -> Option<Box<dyn Any>> + 'static),
+            (dyn Fn(DynamicResult<&[T]>) -> Option<Box<dyn Any>> + 'static),
         >();
 
         unsafe {
@@ -278,46 +343,156 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
             }
         }
     }
-}
 
-pub struct DynamicIter<'a, T: 'static + Send, U: ?Sized + for<'b> Unit<'b>> {
-    ind: usize,
-    black_box: &'a BlackBox<U>,
-    unused: PhantomData<T>,
-}
+    #[inline]
+    pub fn iter<'a, T: 'static + Send>(&'a self) -> DynamicIter<'a, T>
+        where
+            Borrowed<'a, U>: Map<(dyn Any + Send), StorageUnit<T>, Func=for<'b> fn(&'b (dyn Any + Send)) -> &'b StorageUnit<T>>, {
+        DynamicIter::new(self.data.get(&TypeId::of::<T>()).and_then(|bx| {
+            bx.storage()
+                .ok()
+                .map(|z| <Borrowed<'a, U> as Map<_, StorageUnit<T>>>::map(z, |k| k.downcast_ref().unwrap()))
+        }))
+    }
 
-impl<'a, T: 'static + Send, U: ?Sized + for<'b> Unit<'b, Owned = Box<(dyn Any + Send)>>> Iterator
-    for DynamicIter<'a, T, U>
-where
-    Borrowed<'a, U>:
-        Map<(dyn Any + Send + 'static), T, Func = for<'b> fn(&'b (dyn Any + Send)) -> &'b T>,
-{
-    type Item = <Borrowed<'a, U> as Map<(dyn Any + Send + 'static), T>>::Output;
-    fn next(&mut self) -> Option<Self::Item> {
-        self.ind += 1;
-        self.black_box.ind::<T>(self.ind - 1).ok()
+    #[inline]
+    pub fn iter_mut<'a, T: 'static + Send>(&'a self) -> DynamicIterMut<'a, T, <MutBorrowed<'a, U> as MapMut<(dyn Any + Send), StorageUnit<T>>>::Output>
+        where
+            MutBorrowed<'a, U>: MapMut<(dyn Any + Send), StorageUnit<T>, Func=for<'b> fn(&'b mut (dyn Any + Send)) -> &'b mut StorageUnit<T>>, {
+        DynamicIterMut::new(self.data.get(&TypeId::of::<T>()).and_then(|bx| {
+            bx.storage_mut()
+                .ok()
+                .map(|z| <MutBorrowed<'a, U> as MapMut<_, StorageUnit<T>>>::map(z, |k| k.downcast_mut().unwrap()))
+        }))
     }
 }
 
-pub struct DynamicIterMut<'a, T: 'static + Send, U: ?Sized + for<'b> Unit<'b>> {
-    ind: usize,
-    black_box: &'a BlackBox<U>,
-    unused: PhantomData<T>,
+///
+/// The iterator formed when `BlackBox<U>::iter()` is called. This keeps a
+/// lock on the type's storage in the original `BlackBox`, so this will not
+/// try to lock on every call for `.next()` (Ie. every iteration of a `while let` loop)
+///
+/// # Example
+///
+/// ```rust
+/// # fn main() {
+/// use restor::DynamicStorage;
+/// let mut storage = DynamicStorage::new();
+/// storage.allocate_for::<usize>();
+/// storage.insert_many(vec![0usize, 1, 2, 3, 4]).unwrap();
+/// let mut iter = storage.iter::<usize>();
+/// while let Some(i) = iter.next() {
+///     println!("{}", &*i);
+/// }
+/// //prints:
+/// // 0
+/// // 1
+/// // 2
+/// // 3
+/// // 4
+/// # }
+/// ```
+///
+pub struct DynamicIter<'a, T: 'static + Send> {
+    lock: Option<Box<dyn Deref<Target=StorageUnit<T>> + 'a>>,
+    ind: usize
 }
 
-impl<'a, T: 'static + Send, U: ?Sized + for<'b> Unit<'b, Owned = Box<(dyn Any + Send)>>> Iterator
-    for DynamicIterMut<'a, T, U>
-where
-    MutBorrowed<'a, U>: MapMut<
-        (dyn Any + Send + 'static),
-        T,
-        Func = for<'b> fn(&'b mut (dyn Any + Send)) -> &'b mut T,
-    >,
-{
-    type Item = <MutBorrowed<'a, U> as MapMut<(dyn Any + Send + 'static), T>>::Output;
-    fn next(&mut self) -> Option<Self::Item> {
-        self.ind += 1;
-        self.black_box.ind_mut::<T>(self.ind - 1).ok()
+impl<'a, T: 'static + Send> DynamicIter<'a, T> {
+    pub(crate) fn new<C: Deref<Target = StorageUnit<T>> + Erased + 'a>(lock: Option<C>) -> Self {
+        if let Some(x) = lock {
+            if x.many().is_ok() {
+                Self {
+                    lock: Some(Box::new(x)),
+                    ind: 0,
+                }
+            } else {
+                Self {
+                    lock: None,
+                    ind: 0,
+                }
+            }
+        } else {
+            Self {
+                lock: None,
+                ind: 0,
+            }
+        }
+    }
+
+    pub fn next(&'a mut self) -> Option<&'a T> {
+        if let Some(i) = &self.lock {
+            self.ind += 1;
+            i.many().ok().and_then(|x| x.get(self.ind - 1))
+        } else {
+            None
+        }
+    }
+}
+
+///
+/// The iterator formed when `BlackBox<U>::iter_mut()` is called. This keeps a
+/// lock on the type's storage in the original `BlackBox`, so this will not
+/// try to lock on every call for `.next()` (Ie. every iteration of a `while let` loop)
+/// # Example
+/// ```rust
+/// # fn main() {
+/// use restor::DynamicStorage;
+/// let mut storage = DynamicStorage::new();
+/// storage.allocate_for::<usize>();
+/// storage.insert_many(vec![0usize, 1, 2, 3, 4]).unwrap();
+/// let mut iter = storage.iter_mut::<usize>();
+/// while let Some(i) = iter.next() {
+///     println!("{}", *i);
+/// }
+/// //prints:
+/// // 0
+/// // 1
+/// // 2
+/// // 3
+/// // 4
+/// # }
+/// ```
+///
+pub struct DynamicIterMut<'a, T: 'static + Send, C: Deref<Target=StorageUnit<T>> + DerefMut> {
+    lock: Option<C>,
+    ind: usize,
+    unused: PhantomData<&'a T>
+}
+
+impl<'a, T: 'static + Send, C: Deref<Target=StorageUnit<T>> + DerefMut> DynamicIterMut<'a, T, C> {
+    pub(crate) fn new(lock: Option<C>) -> Self {
+        if let Some(mut x) = lock {
+            if x.many_mut().is_ok() {
+                Self {
+                    lock: Some(x),
+                    ind: 0,
+                    unused: Default::default()
+                }
+            } else {
+                Self {
+                    lock: None,
+                    ind: 0,
+                    unused: Default::default()
+                }
+            }
+        } else {
+            Self {
+                lock: None,
+                ind: 0,
+                unused: Default::default()
+            }
+        }
+    }
+
+    pub fn next(&'a mut self) -> Option<&'a mut T> {
+        if let Some(i) = &mut self.lock {
+            self.ind += 1;
+            let ind = self.ind - 1;
+            i.many_mut().ok().and_then(|x| x.get_mut(ind))
+        } else {
+            None
+        }
     }
 }
 
@@ -354,12 +529,9 @@ impl
 {
     #[inline]
     pub fn allocate_for<T: 'static + Send>(&mut self) {
-        if !self.data.contains_key(&TypeId::of::<T>()) {
-            self.data.insert(
-                TypeId::of::<T>(),
-                Box::new(MutexUnit::new(StorageUnit::<T>::new())),
-            );
-        }
+        self.data
+            .entry(TypeId::of::<T>())
+            .or_insert_with(|| Box::new(MutexUnit::new(StorageUnit::<T>::new())));
     }
 }
 
@@ -375,12 +547,9 @@ impl
 {
     #[inline]
     pub fn allocate_for<T: 'static + Send>(&mut self) {
-        if !self.data.contains_key(&TypeId::of::<T>()) {
-            self.data.insert(
-                TypeId::of::<T>(),
-                Box::new(RefCellUnit::new(StorageUnit::<T>::new())),
-            );
-        }
+        self.data
+            .entry(TypeId::of::<T>())
+            .or_insert_with(|| Box::new(RefCellUnit::new(StorageUnit::<T>::new())));
     }
 }
 

@@ -1,6 +1,10 @@
 use std::any::{Any, TypeId};
 
-use super::black_box::{DynamicResult, ErrorDesc, StorageUnit, Unit, UnitError};
+use super::black_box::{
+    DynamicResult,
+    ErrorDesc::{self, *},
+    StorageUnit, Unit, UnitError,
+};
 use parking_lot::{
     MappedMutexGuard, MappedRwLockReadGuard, MappedRwLockWriteGuard, Mutex, MutexGuard, RwLock,
     RwLockReadGuard, RwLockWriteGuard,
@@ -119,11 +123,13 @@ impl<'a, T: 'static + Send> Unit<'a> for MutexUnit<StorageUnit<T>> {
         let newtype = new.type_id();
         if let Some(mut x) = self.inner.try_lock() {
             if new.is::<T>() {
-                x.insert(*new.downcast::<T>().expect(&format!(
-                    "Tried to insert an object with type {:?} into a storage of type {:?}",
-                    newtype,
-                    TypeId::of::<T>()
-                )));
+                x.insert(*new.downcast::<T>().unwrap_or_else(|_| {
+                    panic!(
+                        "Tried to insert an object with type {:?} into a storage of type {:?}",
+                        newtype,
+                        TypeId::of::<T>()
+                    )
+                }));
                 None
             } else if new.is::<Box<Vec<T>>>() {
                 x.insert_many(*new.downcast::<Vec<T>>().unwrap());
@@ -135,13 +141,22 @@ impl<'a, T: 'static + Send> Unit<'a> for MutexUnit<StorageUnit<T>> {
             Some((new, ErrorDesc::BorrowedIncompatibly))
         }
     }
+    fn storage(&'a self) -> DynamicResult<MappedMutexGuard<'a, (dyn Any + Send)>> {
+        self.inner
+            .try_lock()
+            .map(|x| MutexGuard::map::<(dyn Any + Send), _>(x, |z| &mut *z))
+            .ok_or(BorrowedIncompatibly)
+    }
+    fn storage_mut(&'a self) -> DynamicResult<MappedMutexGuard<'a, (dyn Any + Send)>> {
+        self.storage()
+    }
     unsafe fn run_for(&self, (t, ptr): (TypeId, (*const (), *const ()))) -> Option<Box<dyn Any>> {
-        if t == TypeId::of::<dyn for<'b> Fn(DynamicResult<&'b [T]>) -> Option<Box<dyn Any>> + 'static>(
+        if t == TypeId::of::<dyn Fn(DynamicResult<&[T]>) -> Option<Box<dyn Any>> + 'static>(
         ) {
             if let Some(x) = self.inner.try_lock() {
                 let func = std::mem::transmute::<
                     _,
-                    &dyn for<'b> Fn(DynamicResult<&'b [T]>) -> Option<Box<dyn Any>>,
+                    &dyn Fn(DynamicResult<&[T]>) -> Option<Box<dyn Any>>,
                 >(ptr);
                 func(x.many())
             } else {
@@ -270,16 +285,29 @@ impl<'a, T: 'static + Send> Unit<'a> for RwLockUnit<StorageUnit<T>> {
                 .extract_many_boxed(),
         ))
     }
-
+    fn storage(&'a self) -> DynamicResult<MappedRwLockReadGuard<'a, (dyn Any + Send)>> {
+        self.inner
+            .try_read()
+            .map(|x| RwLockReadGuard::map::<(dyn Any + Send), _>(x, |z| &*z))
+            .ok_or(BorrowedIncompatibly)
+    }
+    fn storage_mut(&'a self) -> DynamicResult<MappedRwLockWriteGuard<'a, (dyn Any + Send)>> {
+        self.inner
+            .try_write()
+            .map(|x| RwLockWriteGuard::map::<(dyn Any + Send), _>(x, |z| &mut *z))
+            .ok_or(BorrowedIncompatibly)
+    }
     fn insert_any(&self, new: Box<(dyn Any + Send)>) -> Option<(Box<(dyn Any + Send)>, ErrorDesc)> {
         let newtype = new.type_id();
         if let Some(mut x) = self.inner.try_write() {
             if new.is::<T>() {
-                x.insert(*new.downcast::<T>().expect(&format!(
-                    "Tried to insert an object with type {:?} into a storage of type {:?}",
-                    newtype,
-                    TypeId::of::<T>()
-                )));
+                x.insert(*new.downcast::<T>().unwrap_or_else(|_| {
+                    panic!(
+                        "Tried to insert an object with type {:?} into a storage of type {:?}",
+                        newtype,
+                        TypeId::of::<T>()
+                    )
+                }));
                 None
             } else if new.is::<Box<Vec<T>>>() {
                 x.insert_many(*new.downcast::<Vec<T>>().unwrap());
@@ -293,12 +321,12 @@ impl<'a, T: 'static + Send> Unit<'a> for RwLockUnit<StorageUnit<T>> {
     }
     unsafe fn run_for(&self, (t, ptr): (TypeId, (*const (), *const ()))) -> Option<Box<dyn Any>> {
         if t == TypeId::of::<
-            (dyn for<'b> Fn(DynamicResult<&'b [T]>) -> Option<Box<dyn Any>> + 'static),
+            (dyn Fn(DynamicResult<&[T]>) -> Option<Box<dyn Any>> + 'static),
         >() {
             if let Some(x) = self.inner.try_read() {
                 let func = std::mem::transmute::<
                     _,
-                    &dyn for<'b> Fn(DynamicResult<&'b [T]>) -> Option<Box<dyn Any>>,
+                    &dyn Fn(DynamicResult<&[T]>) -> Option<Box<dyn Any>>,
                 >(ptr);
                 func(x.many())
             } else {

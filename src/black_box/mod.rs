@@ -254,6 +254,9 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
         }
     }
 
+    ///
+    /// Internal function. Returns a reference to the `Unit` for `T`
+    ///
     #[inline]
     fn unit_get<T: 'static + Send>(&self) -> DynamicResult<&U> {
         self.data
@@ -262,6 +265,42 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
             .ok_or(ErrorDesc::NoAllocatedUnit)
     }
 
+    ///
+    /// Returns a mutable lock on a value of type `T`.
+    /// This will return:
+    ///
+    /// - A [`RefMut<'a, T>`] in the case of `DynamicStorage`
+    /// - A [`MappedMutexGuard<'a, T>`] in the case of `MutexStorage`
+    /// - A [`MappedRwLockWriteGuard<'a, T>`] in the case of `RwLockStorage`
+    ///
+    /// In the case that there is no unit, or that the data is incompatibly borrowed,
+    /// an `Err` value will be returned, containing a description of the error in the
+    /// enum variant name. This will also return an `Err` variant if more than one `T`
+    /// are stored in the storage.
+    ///
+    /// # Example
+    /// ```
+    /// # fn main() {
+    /// use restor::DynamicStorage;
+    ///
+    /// let mut storage = DynamicStorage::new();
+    /// storage.allocate_for::<String>();
+    /// storage.insert(String::new());
+    ///
+    /// let mut lock = storage.get_mut::<String>().unwrap();
+    /// *lock.push_str("Abc");
+    /// drop(lock);
+    ///
+    /// let lock = storage.get::<String>().unwrap();
+    /// assert_eq!(&*lock, "Abc");
+    ///
+    /// # }
+    /// ```
+    ///
+    /// [`MappedMutexGuard<'a, T>`]: https://docs.rs/parking_lot/0.8.0/parking_lot/type.MappedMutexGuard.html
+    /// [`MappedRwLockWriteGuard<'a, T>`]: https://docs.rs/parking_lot/0.8.0/parking_lot/type.MappedRwLockWriteGuard.html
+    /// [`RefMut<'a, T>`]: https://doc.rust-lang.org/std/cell/struct.RefMut.html
+    ///
     #[inline]
     pub fn get_mut<'a, T: 'static + Send>(
         &'a self,
@@ -269,7 +308,8 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
     where
         MutBorrowed<'a, U>: MapMut<(dyn Any + Send), T, Func = fn(&mut (dyn Any + Send)) -> &mut T>,
     {
-        Ok(Self::unit_get::<T>(self)?
+        Ok(self
+            .unit_get::<T>()?
             .one_mut()?
             .map(|x| x.downcast_mut().unwrap()))
     }

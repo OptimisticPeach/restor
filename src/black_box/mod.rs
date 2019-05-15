@@ -314,6 +314,37 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
             .map(|x| x.downcast_mut().unwrap()))
     }
 
+    ///
+    /// Returns a mutable lock to the element at a given index.
+    /// This will return the only element available if there is
+    /// only one element in the storage, and the index specified
+    /// is 0.
+    /// 
+    /// This will return the same lock types as `BlackBox::get_mut()`
+    /// 
+    /// # Example
+	/// ```
+	/// # fn main() {
+	/// use restor::DynamicStorage;
+	/// let mut storage = DynamicStorage::new();
+	/// storage.allocate_for::<String>();
+	/// storage.insert(String::new());
+	/// {
+	///     let mut lock = storage.ind_mut::<String>(0);
+	///     lock.push_str("abc");
+	/// }	
+	/// storage.insert(String::new());
+	/// storage.ind_mut(0).push_str("def");
+	/// assert_eq!(
+	///		storage.run_for::<String>(&|x| {
+	/// 		let x = x.unwrap();
+	///         Some(x[0] + x[1])
+	/// 	}).unwrap(),
+	///		"abcdef"
+	/// );
+	/// # }
+	/// ```
+    /// 
     #[inline]
     pub fn ind_mut<'a, T: 'static + Send>(
         &'a self,

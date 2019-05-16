@@ -359,11 +359,34 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
             .map(|x| x.downcast_mut().unwrap()))
     }
 
+    /// 
+    /// Retrieves an owned `T` from the storage.
+    /// 
+    /// Returns an `Err`or in the case that it is impossible to retrieve one.
+    ///
+    /// # Example
+    /// ```
+    /// # fn main() {
+    ///	use restor::DynamicStorage;
+    /// let mut storage = DynamicStorage::new();
+    /// storage.allocate_for::<String>();
+    /// storage.insert(String::new()).unwrap();
+    /// let my_str: String = storage.extract::<String>().unwrap();
+    /// assert_eq!(my_str, String::new());
+    /// # }
+    /// ```
+    ///
     #[inline]
     pub fn extract<T: 'static + Send>(&self) -> DynamicResult<T> {
         Ok(*self.unit_get::<T>()?.extract()?.downcast().unwrap())
     }
 
+    ///
+    /// Extracts multiple values and returns them in the form of
+    /// a `Box<[T]>` which can be turned into a `Vec<T>` using `.into()`
+
+    ///
+    ///
     #[inline]
     pub fn extract_many<T: 'static + Send>(&self) -> DynamicResult<Box<[T]>> {
         Ok(*self.unit_get::<T>()?.extract_many()?.downcast().unwrap())

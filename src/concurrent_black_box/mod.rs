@@ -63,7 +63,12 @@ impl<'a, T: 'static + Send> Unit<'a> for MutexUnit<StorageUnit<T>> {
                     })),
                     None => Err(ErrorDesc::Unit(UnitError::OutOfBounds)),
                 },
-                Err(e) => Err(e),
+                Err(e) => match nx.one_mut() {
+                    Ok(_) => Ok(MutexGuard::map(nx, |x| {
+                        &mut *x.one_mut().unwrap() as &mut _
+                    })),
+                    Err(ne) => Err(e & ne),
+                },
             }
         } else {
             Err(ErrorDesc::BorrowedIncompatibly)
@@ -79,7 +84,12 @@ impl<'a, T: 'static + Send> Unit<'a> for MutexUnit<StorageUnit<T>> {
                     })),
                     None => Err(ErrorDesc::Unit(UnitError::OutOfBounds)),
                 },
-                Err(e) => Err(e),
+                Err(e) => match nx.one_mut() {
+                    Ok(_) => Ok(MutexGuard::map(nx, |x| {
+                        &mut *x.one_mut().unwrap() as &mut _
+                    })),
+                    Err(ne) => Err(e & ne),
+                },
             }
         } else {
             Err(ErrorDesc::BorrowedIncompatibly)
@@ -98,14 +108,26 @@ impl<'a, T: 'static + Send> Unit<'a> for MutexUnit<StorageUnit<T>> {
     }
     fn extract_ind(&self, ind: usize) -> DynamicResult<Box<(dyn Any + Send)>> {
         if let Some(mut borrowed) = self.inner.try_lock() {
-            borrowed.many_mut().and_then(|x| {
-                if ind < x.len() {
-                    let x: Box<(dyn Any + Send)> = Box::new(x.remove(ind));
-                    Ok(x)
-                } else {
-                    Err(ErrorDesc::Unit(UnitError::OutOfBounds))
+            match borrowed.many_mut() {
+                Ok(_) => borrowed.many_mut().and_then(|x| {
+                    if ind < x.len() {
+                        let x: Box<(dyn Any + Send)> = Box::new(x.remove(ind));
+                        Ok(x)
+                    } else {
+                        Err(ErrorDesc::Unit(UnitError::OutOfBounds))
+                    }
+                }),
+                Err(e) => {
+                    if ind == 0 {
+                        borrowed
+                            .extract_one()
+                            .map(|x| Box::new(x) as _)
+                            .map_err(|ne| ne & e)
+                    } else {
+                        Err(e)
+                    }
                 }
-            })
+            }
         } else {
             Err(ErrorDesc::BorrowedIncompatibly)
         }
@@ -226,7 +248,16 @@ impl<'a, T: 'static + Send> Unit<'a> for RwLockUnit<StorageUnit<T>> {
                     })),
                     None => Err(ErrorDesc::Unit(UnitError::OutOfBounds)),
                 },
-                Err(e) => Err(e),
+                Err(e) => {
+                    if ind == 0 {
+                        match nx.one() {
+                            Ok(_) => Ok(RwLockReadGuard::map(nx, |x| x.one().unwrap() as &_)),
+                            Err(ne) => Err(e & ne),
+                        }
+                    } else {
+                        Err(e)
+                    }
+                }
             }
         } else {
             Err(ErrorDesc::BorrowedIncompatibly)
@@ -236,7 +267,7 @@ impl<'a, T: 'static + Send> Unit<'a> for RwLockUnit<StorageUnit<T>> {
         &'a self,
         ind: usize,
     ) -> DynamicResult<MappedRwLockWriteGuard<'a, (dyn Any + Send)>> {
-        if let Some(nx) = self.inner.try_write() {
+        if let Some(mut nx) = self.inner.try_write() {
             match nx.many() {
                 Ok(slice) => match slice.get(ind) {
                     Some(_) => Ok(RwLockWriteGuard::map(nx, |x| {
@@ -245,7 +276,18 @@ impl<'a, T: 'static + Send> Unit<'a> for RwLockUnit<StorageUnit<T>> {
                     })),
                     None => Err(ErrorDesc::Unit(UnitError::OutOfBounds)),
                 },
-                Err(e) => Err(e),
+                Err(e) => {
+                    if ind == 0 {
+                        match nx.one_mut() {
+                            Ok(_) => Ok(RwLockWriteGuard::map(nx, |nx| {
+                                nx.one_mut().unwrap() as &mut _
+                            })),
+                            Err(ne) => Err(e & ne),
+                        }
+                    } else {
+                        Err(e)
+                    }
+                }
             }
         } else {
             Err(ErrorDesc::BorrowedIncompatibly)
@@ -264,14 +306,26 @@ impl<'a, T: 'static + Send> Unit<'a> for RwLockUnit<StorageUnit<T>> {
     }
     fn extract_ind(&self, ind: usize) -> DynamicResult<Box<(dyn Any + Send)>> {
         if let Some(mut borrowed) = self.inner.try_write() {
-            borrowed.many_mut().and_then(|x| {
-                if ind < x.len() {
-                    let x: Box<(dyn Any + Send)> = Box::new(x.remove(ind));
-                    Ok(x)
-                } else {
-                    Err(ErrorDesc::Unit(UnitError::OutOfBounds))
+            match borrowed.many_mut() {
+                Ok(_) => borrowed.many_mut().and_then(|x| {
+                    if ind < x.len() {
+                        let x: Box<(dyn Any + Send)> = Box::new(x.remove(ind));
+                        Ok(x)
+                    } else {
+                        Err(ErrorDesc::Unit(UnitError::OutOfBounds))
+                    }
+                }),
+                Err(e) => {
+                    if ind == 0 {
+                        match borrowed.extract_one() {
+                            Ok(x) => Ok(Box::new(x)),
+                            Err(ne) => Err(ne & e),
+                        }
+                    } else {
+                        Err(e)
+                    }
                 }
-            })
+            }
         } else {
             Err(ErrorDesc::BorrowedIncompatibly)
         }

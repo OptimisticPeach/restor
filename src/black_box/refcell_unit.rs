@@ -50,7 +50,16 @@ impl<'a, T: 'static + Send> Unit<'a> for RefCellUnit<StorageUnit<T>> {
                     Some(_) => Ok(Ref::map(nx, |nx| &*nx.many().unwrap().get(ind).unwrap())),
                     None => Err(ErrorDesc::Unit(UnitError::OutOfBounds)),
                 },
-                Err(e) => Err(e),
+                Err(many_err) => {
+                    if ind == 0 {
+                        match nx.one() {
+                            Ok(_) => Ok(Ref::map(nx, |nx| &*nx.one().unwrap())),
+                            Err(one_err) => Err(one_err & many_err),
+                        }
+                    } else {
+                        Err(many_err)
+                    }
+                }
             }
         } else {
             Err(ErrorDesc::BorrowedIncompatibly)
@@ -65,7 +74,16 @@ impl<'a, T: 'static + Send> Unit<'a> for RefCellUnit<StorageUnit<T>> {
                     })),
                     None => Err(ErrorDesc::Unit(UnitError::OutOfBounds)),
                 },
-                Err(e) => Err(e),
+                Err(many_err) => {
+                    if ind == 0 {
+                        match nx.one_mut() {
+                            Ok(_) => Ok(RefMut::map(nx, |nx| &mut *nx.one_mut().unwrap())),
+                            Err(one_err) => Err(one_err & many_err),
+                        }
+                    } else {
+                        Err(many_err)
+                    }
+                }
             }
         } else {
             Err(ErrorDesc::BorrowedIncompatibly)
@@ -84,14 +102,26 @@ impl<'a, T: 'static + Send> Unit<'a> for RefCellUnit<StorageUnit<T>> {
     }
     fn extract_ind(&self, ind: usize) -> DynamicResult<Box<(dyn Any + Send)>> {
         if let Ok(mut borrowed) = self.inner.try_borrow_mut() {
-            borrowed.many_mut().and_then(|x| {
-                if ind < x.len() {
-                    let x: Box<(dyn Any + Send)> = Box::new(x.remove(ind));
-                    Ok(x)
-                } else {
-                    Err(ErrorDesc::Unit(UnitError::OutOfBounds))
+            match borrowed.many_mut() {
+                Ok(_) => borrowed.many_mut().and_then(|x| {
+                    if ind < x.len() {
+                        let x: Box<(dyn Any + Send)> = Box::new(x.remove(ind));
+                        Ok(x)
+                    } else {
+                        Err(ErrorDesc::Unit(UnitError::OutOfBounds))
+                    }
+                }),
+                Err(e) => {
+                    if ind == 0 {
+                        borrowed
+                            .extract_one()
+                            .map(|x| Box::new(x) as _)
+                            .map_err(|ne| ne & e)
+                    } else {
+                        Err(e)
+                    }
                 }
-            })
+            }
         } else {
             Err(ErrorDesc::BorrowedIncompatibly)
         }

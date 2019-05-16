@@ -1,7 +1,7 @@
 use std::any::{Any, TypeId};
 use std::fmt::{Debug, Formatter};
 use std::mem::swap;
-use std::ops::{Deref, DerefMut};
+use std::ops::{BitAnd, Deref, DerefMut};
 
 pub type DynamicResult<Ok> = Result<Ok, ErrorDesc>;
 
@@ -50,12 +50,29 @@ pub enum ErrorDesc {
     /// Contains an error specific to unit operations. Please refer to the `UnitError` documentation
     /// for more information.
     Unit(UnitError),
+    /// The case where there were two errors
+    Two(Box<(ErrorDesc, ErrorDesc)>),
+}
+
+impl BitAnd for ErrorDesc {
+    type Output = Self;
+
+    #[inline]
+    fn bitand(self, rhs: Self) -> Self {
+        match (self, rhs) {
+            (ErrorDesc::Unit(UnitError::IsNotMany), ErrorDesc::Unit(UnitError::IsNotOne)) => {
+                ErrorDesc::Unit(UnitError::IsNone)
+            }
+            (x, y) => ErrorDesc::Two(Box::new((x, y))),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
 pub enum UnitError {
     IsNotOne,
     IsNotMany,
+    IsNone,
     OutOfBounds,
 }
 

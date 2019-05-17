@@ -288,7 +288,7 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
     /// storage.insert(String::new());
     ///
     /// let mut lock = storage.get_mut::<String>().unwrap();
-    /// *lock.push_str("Abc");
+    /// lock.push_str("Abc");
     /// drop(lock);
     ///
     /// let lock = storage.get::<String>().unwrap();
@@ -330,15 +330,15 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
     /// storage.allocate_for::<String>();
     /// storage.insert(String::new());
     /// {
-    ///     let mut lock = storage.ind_mut::<String>(0);
+    ///     let mut lock = storage.ind_mut::<String>(0).unwrap();
     ///     lock.push_str("abc");
     /// }
     /// storage.insert(String::new());
-    /// storage.ind_mut(0).push_str("def");
+    /// storage.ind_mut::<String>(0).unwrap().push_str("def");
     /// assert_eq!(
-    ///		storage.run_for::<String>(&|x| {
+    ///		&storage.run_for::<String>(&|x| {
     /// 		let x = x.unwrap();
-    ///         Some(x[0] + x[1])
+    ///         Some(x[0] + &x[1])
     /// 	}).unwrap(),
     ///		"abcdef"
     /// );
@@ -418,17 +418,26 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
             .map(|x| x.downcast_ref().unwrap()))
     }
     #[inline]
-    pub fn run_for<T: 'static + Send>(
+    pub fn run_for<'a, T: 'static + Send, D: 'static + Any, F: Fn(DynamicResult<&[T]>) -> Option<D> + 'static>(
         &self,
-        f: &(dyn Fn(DynamicResult<&[T]>) -> Option<Box<dyn Any>> + 'static),
-    ) -> Option<Box<dyn Any>> {
-        let ptr = unsafe { std::mem::transmute::<_, (*const (), *const ())>(f) };
+        f: F,
+    ) -> Option<D> {
+        let new_fn = |x: DynamicResult<&[T]>| {
+            let var: Option<D> = f(x);
+            var.map(|x| Box::new(x) as Box<dyn Any>)
+        };
+
+        let ptr = unsafe {
+            std::mem::transmute::<_, (*const (), *const ())>(Box::new(new_fn) as Box<(dyn Fn(DynamicResult<&[T]>) -> Option<Box<dyn Any>>)>)
+        };
+
         let t = TypeId::of::<(dyn Fn(DynamicResult<&[T]>) -> Option<Box<dyn Any>> + 'static)>();
 
         unsafe {
             let unit = self.unit_get::<T>();
             if let Ok(x) = unit {
-                x.run_for((t, ptr))
+                let val = x.run_for((t, ptr));
+                val.map(|x| *x.downcast().unwrap())
             } else {
                 None
             }
@@ -489,10 +498,12 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
 /// let mut storage = DynamicStorage::new();
 /// storage.allocate_for::<usize>();
 /// storage.insert_many(vec![0usize, 1, 2, 3, 4]).unwrap();
-/// let mut iter = storage.iter::<usize>();
-/// while let Some(i) = iter.next() {
-///     println!("{}", &*i);
-/// }
+/// storage.run_for::<usize>(&|x| {
+///     for i in x.unwrap() {
+///         println!("{}", i);
+///     }
+///     None
+/// });
 /// //prints:
 /// // 0
 /// // 1

@@ -52,6 +52,44 @@ pub type DynamicStorage = BlackBox<
     >),
 >;
 
+///
+/// Shorthand for forming storage with preallocated types
+///
+/// # Example
+/// ```
+/// use restor::{DynamicStorage, storage};
+/// let x: DynamicStorage = storage!(DynamicStorage: usize, String, isize);
+/// x.insert(0usize).unwrap();
+/// x.insert(String::new()).unwrap();
+/// x.insert(1isize).unwrap();
+/// ```
+///
+#[macro_export]
+macro_rules! storage {
+    ($storagetype:ty $(: $($contents:ty),*)? ) => {
+        {
+            let mut storage = $storagetype::new();
+            $(
+                $(
+                    storage.allocate_for::<$contents>();
+                )*
+            )?
+            storage
+        }
+    };
+    (Arc<$storagetype:ty> $(: $($contents:ty),*)? ) => {
+        {
+            let mut storage = $storagetype::new();
+            $(
+                $(
+                    storage.allocate_for::<$contents>();
+                )*
+            )?
+            ::std::arc::Arc::new(storage)
+        }
+    }
+}
+
 pub use black_box::{
     BlackBox, ErrorDesc, MutexUnitTrait, RefCellUnitTrait, RwLockUnitTrait, Unit, UnitError,
 };

@@ -359,9 +359,9 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
             .map(|x| x.downcast_mut().unwrap()))
     }
 
-    /// 
+    ///
     /// Retrieves an owned `T` from the storage.
-    /// 
+    ///
     /// Returns an `Err`or in the case that it is impossible to retrieve one.
     ///
     /// # Example
@@ -418,7 +418,12 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
             .map(|x| x.downcast_ref().unwrap()))
     }
     #[inline]
-    pub fn run_for<'a, T: 'static + Send, D: 'static + Any, F: Fn(DynamicResult<&[T]>) -> Option<D> + 'static>(
+    pub fn run_for<
+        'a,
+        T: 'static + Send,
+        D: 'static + Any,
+        F: Fn(DynamicResult<&[T]>) -> Option<D> + 'static,
+    >(
         &self,
         f: F,
     ) -> Option<D> {
@@ -428,7 +433,9 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
         };
 
         let ptr = unsafe {
-            std::mem::transmute::<_, (*const (), *const ())>(Box::new(new_fn) as Box<(dyn Fn(DynamicResult<&[T]>) -> Option<Box<dyn Any>>)>)
+            std::mem::transmute::<_, (*const (), *const ())>(
+                Box::new(new_fn) as Box<(dyn Fn(DynamicResult<&[T]>) -> Option<Box<dyn Any>>)>
+            )
         };
 
         let t = TypeId::of::<(dyn Fn(DynamicResult<&[T]>) -> Option<Box<dyn Any>> + 'static)>();

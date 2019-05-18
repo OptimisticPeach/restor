@@ -132,7 +132,7 @@ impl<'a, I: 'static + Send + ?Sized, O: 'static + Send + ?Sized> MapMut<I, O>
 ///
 #[derive(Default)]
 pub struct BlackBox<U: ?Sized> {
-    data: HashMap<TypeId, Box<U>>,
+    pub(crate) data: HashMap<TypeId, Box<U>>,
 }
 
 type Borrowed<'a, T> = <T as Unit<'a>>::Borrowed;
@@ -396,7 +396,7 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
     /// ```
     ///
     #[inline]
-    pub fn extract_many<T: 'static + Send>(&self) -> DynamicResult<Box<[T]>> {
+    pub fn extract_many<T: 'static + Send>(&self) -> DynamicResult<Vec<T>> {
         Ok(*self.unit_get::<T>()?.extract_many()?.downcast().unwrap())
     }
 
@@ -437,6 +437,7 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
             .one()?
             .map(|x| x.downcast_ref().unwrap()))
     }
+
     #[inline]
     pub fn ind<'a, T: 'static + Send>(
         &'a self,
@@ -450,28 +451,29 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
             .ind(ind)?
             .map(|x| x.downcast_ref().unwrap()))
     }
+
     #[inline]
     pub fn run_for<
         'a,
         T: 'static + Send,
         D: 'static + Any,
-        F: Fn(DynamicResult<&[T]>) -> Option<D> + 'static,
+        F: FnMut(DynamicResult<&[T]>) -> Option<D>,
     >(
         &self,
-        f: F,
+        mut f: F,
     ) -> Option<D> {
-        let new_fn = |x: DynamicResult<&[T]>| {
+        let mut new_fn = |x: DynamicResult<&[T]>| {
             let var: Option<D> = f(x);
             var.map(|x| Box::new(x) as Box<dyn Any>)
         };
 
         let ptr = unsafe {
             std::mem::transmute::<_, (*const (), *const ())>(
-                &new_fn as &dyn Fn(DynamicResult<&[T]>) -> Option<Box<dyn Any>>,
+                &mut new_fn as &mut dyn FnMut(DynamicResult<&[T]>) -> Option<Box<dyn Any>>,
             )
         };
 
-        let t = TypeId::of::<(dyn Fn(DynamicResult<&[T]>) -> Option<Box<dyn Any>> + 'static)>();
+        let t = TypeId::of::<(dyn FnMut(DynamicResult<&[T]>) -> Option<Box<dyn Any>>)>();
 
         let unit = self.unit_get::<T>();
 
@@ -558,30 +560,6 @@ unsafe impl Sync
             'a,
             Borrowed = MappedMutexGuard<'a, (dyn Any + Send)>,
             MutBorrowed = MappedMutexGuard<'a, (dyn Any + Send)>,
-            Owned = Box<(dyn Any + Send)>,
-        > + Send),
-    >
-{
-}
-
-unsafe impl Send
-    for BlackBox<
-        (dyn for<'a> Unit<
-            'a,
-            Borrowed = MappedRwLockReadGuard<'a, (dyn Any + Send)>,
-            MutBorrowed = MappedRwLockWriteGuard<'a, (dyn Any + Send)>,
-            Owned = Box<(dyn Any + Send)>,
-        > + Send),
-    >
-{
-}
-
-unsafe impl Sync
-    for BlackBox<
-        (dyn for<'a> Unit<
-            'a,
-            Borrowed = MappedRwLockReadGuard<'a, (dyn Any + Send)>,
-            MutBorrowed = MappedRwLockWriteGuard<'a, (dyn Any + Send)>,
             Owned = Box<(dyn Any + Send)>,
         > + Send),
     >

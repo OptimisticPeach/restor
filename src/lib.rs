@@ -35,14 +35,6 @@ pub type MutexStorage = BlackBox<
         Owned = Box<(dyn Any + Send)>,
     > + Send),
 >;
-pub type RwLockStorage = BlackBox<
-    (dyn for<'a> Unit<
-        'a,
-        Borrowed = MappedRwLockReadGuard<'a, (dyn Any + Send)>,
-        MutBorrowed = MappedRwLockWriteGuard<'a, (dyn Any + Send)>,
-        Owned = Box<(dyn Any + Send)>,
-    > + Send),
->;
 pub type DynamicStorage = BlackBox<
     (dyn for<'a> Unit<
         'a,
@@ -93,7 +85,7 @@ macro_rules! make_storage {
 pub use black_box::{
     BlackBox, ErrorDesc, MutexUnitTrait, RefCellUnitTrait, RwLockUnitTrait, Unit, UnitError,
 };
-pub use concurrent_black_box::{MutexUnit, RwLockUnit};
-use parking_lot::{MappedMutexGuard, MappedRwLockReadGuard, MappedRwLockWriteGuard};
+pub use concurrent_black_box::{MutexUnit, RwLockUnit, RwLockStorage};
+use parking_lot::{MappedMutexGuard};
 use std::any::Any;
 use std::cell::{Ref, RefMut};

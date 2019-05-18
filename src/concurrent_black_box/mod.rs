@@ -9,6 +9,8 @@ use parking_lot::{
     MappedMutexGuard, MappedRwLockReadGuard, MappedRwLockWriteGuard, Mutex, MutexGuard, RwLock,
     RwLockReadGuard, RwLockWriteGuard,
 };
+use crate::BlackBox;
+use std::ops::Deref;
 
 pub struct MutexUnit<T> {
     inner: Mutex<T>,
@@ -137,7 +139,7 @@ impl<'a, T: 'static + Send> Unit<'a> for MutexUnit<StorageUnit<T>> {
             self.inner
                 .try_lock()
                 .ok_or(ErrorDesc::BorrowedIncompatibly)?
-                .extract_many_boxed(),
+                .extract_many_boxed()?,
         ))
     }
 
@@ -173,11 +175,11 @@ impl<'a, T: 'static + Send> Unit<'a> for MutexUnit<StorageUnit<T>> {
         self.storage()
     }
     unsafe fn run_for(&self, (t, ptr): (TypeId, (*const (), *const ()))) -> Option<Box<dyn Any>> {
-        if t == TypeId::of::<dyn Fn(DynamicResult<&[T]>) -> Option<Box<dyn Any>> + 'static>() {
+        if t == TypeId::of::<dyn FnMut(DynamicResult<&[T]>) -> Option<Box<dyn Any>>>() {
             if let Some(x) = self.inner.try_lock() {
                 let func = std::mem::transmute::<
                     _,
-                    &dyn Fn(DynamicResult<&[T]>) -> Option<Box<dyn Any>>,
+                    &mut dyn FnMut(DynamicResult<&[T]>) -> Option<Box<dyn Any>>,
                 >(ptr);
                 func(x.many())
             } else {
@@ -335,7 +337,7 @@ impl<'a, T: 'static + Send> Unit<'a> for RwLockUnit<StorageUnit<T>> {
             self.inner
                 .try_write()
                 .ok_or(ErrorDesc::BorrowedIncompatibly)?
-                .extract_many_boxed(),
+                .extract_many_boxed()?,
         ))
     }
     fn storage(&'a self) -> DynamicResult<MappedRwLockReadGuard<'a, (dyn Any + Send)>> {
@@ -373,11 +375,11 @@ impl<'a, T: 'static + Send> Unit<'a> for RwLockUnit<StorageUnit<T>> {
         }
     }
     unsafe fn run_for(&self, (t, ptr): (TypeId, (*const (), *const ()))) -> Option<Box<dyn Any>> {
-        if t == TypeId::of::<(dyn Fn(DynamicResult<&[T]>) -> Option<Box<dyn Any>> + 'static)>() {
+        if t == TypeId::of::<(dyn FnMut(DynamicResult<&[T]>) -> Option<Box<dyn Any>>)>() {
             if let Some(x) = self.inner.try_read() {
                 let func = std::mem::transmute::<
                     _,
-                    &dyn Fn(DynamicResult<&[T]>) -> Option<Box<dyn Any>>,
+                    &mut dyn FnMut(DynamicResult<&[T]>) -> Option<Box<dyn Any>>,
                 >(ptr);
                 func(x.many())
             } else {
@@ -394,3 +396,40 @@ impl<'a, T: 'static + Send> Unit<'a> for RwLockUnit<StorageUnit<T>> {
 }
 
 unsafe impl<T: Send> Send for RwLockUnit<StorageUnit<T>> {}
+
+pub struct RwLockStorage(BlackBox<
+    (dyn for<'a> Unit<
+        'a,
+        Borrowed=MappedRwLockReadGuard<'a, (dyn Any + Send)>,
+        MutBorrowed=MappedRwLockWriteGuard<'a, (dyn Any + Send)>,
+        Owned=Box<(dyn Any + Send)>,
+    > + Send),
+>);
+
+impl Deref for RwLockStorage {
+    type Target = BlackBox<
+        (dyn for<'a> Unit<
+            'a,
+            Borrowed=MappedRwLockReadGuard<'a, (dyn Any + Send)>,
+            MutBorrowed=MappedRwLockWriteGuard<'a, (dyn Any + Send)>,
+            Owned=Box<(dyn Any + Send)>,
+        > + Send),
+    >;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl RwLockStorage {
+    pub fn new() -> Self {
+        RwLockStorage(BlackBox::new())
+    }
+    pub fn allocate_for<T: Any + Send + Sync + 'static>(&mut self) {
+        self.0
+            .data
+            .entry(TypeId::of::<T>())
+            .or_insert_with(|| Box::new(RwLockUnit::new(StorageUnit::<T>::new())));
+    }
+}
+unsafe impl Send for RwLockStorage {}
+unsafe impl Sync for RwLockStorage {}

@@ -5,11 +5,11 @@ use super::black_box::{
     ErrorDesc::{self, *},
     StorageUnit, Unit, UnitError,
 };
+use crate::BlackBox;
 use parking_lot::{
     MappedMutexGuard, MappedRwLockReadGuard, MappedRwLockWriteGuard, Mutex, MutexGuard, RwLock,
     RwLockReadGuard, RwLockWriteGuard,
 };
-use crate::BlackBox;
 use std::ops::Deref;
 
 pub struct MutexUnit<T> {
@@ -397,22 +397,24 @@ impl<'a, T: 'static + Send> Unit<'a> for RwLockUnit<StorageUnit<T>> {
 
 unsafe impl<T: Send> Send for RwLockUnit<StorageUnit<T>> {}
 
-pub struct RwLockStorage(BlackBox<
-    (dyn for<'a> Unit<
-        'a,
-        Borrowed=MappedRwLockReadGuard<'a, (dyn Any + Send)>,
-        MutBorrowed=MappedRwLockWriteGuard<'a, (dyn Any + Send)>,
-        Owned=Box<(dyn Any + Send)>,
-    > + Send),
->);
+pub struct RwLockStorage(
+    BlackBox<
+        (dyn for<'a> Unit<
+            'a,
+            Borrowed = MappedRwLockReadGuard<'a, (dyn Any + Send)>,
+            MutBorrowed = MappedRwLockWriteGuard<'a, (dyn Any + Send)>,
+            Owned = Box<(dyn Any + Send)>,
+        > + Send),
+    >,
+);
 
 impl Deref for RwLockStorage {
     type Target = BlackBox<
         (dyn for<'a> Unit<
             'a,
-            Borrowed=MappedRwLockReadGuard<'a, (dyn Any + Send)>,
-            MutBorrowed=MappedRwLockWriteGuard<'a, (dyn Any + Send)>,
-            Owned=Box<(dyn Any + Send)>,
+            Borrowed = MappedRwLockReadGuard<'a, (dyn Any + Send)>,
+            MutBorrowed = MappedRwLockWriteGuard<'a, (dyn Any + Send)>,
+            Owned = Box<(dyn Any + Send)>,
         > + Send),
     >;
     fn deref(&self) -> &Self::Target {

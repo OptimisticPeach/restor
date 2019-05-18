@@ -85,7 +85,7 @@ macro_rules! make_storage {
 pub use black_box::{
     BlackBox, ErrorDesc, MutexUnitTrait, RefCellUnitTrait, RwLockUnitTrait, Unit, UnitError,
 };
-pub use concurrent_black_box::{MutexUnit, RwLockUnit, RwLockStorage};
-use parking_lot::{MappedMutexGuard};
+pub use concurrent_black_box::{MutexUnit, RwLockStorage, RwLockUnit};
+use parking_lot::MappedMutexGuard;
 use std::any::Any;
 use std::cell::{Ref, RefMut};

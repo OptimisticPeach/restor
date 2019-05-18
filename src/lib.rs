@@ -1,10 +1,11 @@
+//!
 //! A dynamically allocated storage system. Check it out on [Github][gh], or its capabilities on the
 //! [tests][ts]. This is meant to serve as a storage solution for resources in a dynamic context. It
 //! supports runtime borrow checking using [`RefCell`][rc]s. It will support a concurrent context in
 //! the future.
 //!
 //! [gh]: https://github.com/OptimisticPeach/restor
-//! [ts]: https://github.com/OptimisticPeach/restor
+//! [ts]: https://github.com/OptimisticPeach/restor/tree/master/tests
 //! [rc]: https://doc.rust-lang.org/std/cell/struct.RefCell.html
 //!
 //! ## Example
@@ -33,7 +34,8 @@ pub type MutexStorage = BlackBox<
         Borrowed = MappedMutexGuard<'a, (dyn Any + Send)>,
         MutBorrowed = MappedMutexGuard<'a, (dyn Any + Send)>,
         Owned = Box<(dyn Any + Send)>,
-    > + Send),
+    > + Send
+         + Sync),
 >;
 pub type DynamicStorage = BlackBox<
     (dyn for<'a> Unit<

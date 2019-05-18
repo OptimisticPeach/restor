@@ -5,10 +5,38 @@ use std::ops::{BitAnd, Deref, DerefMut};
 
 pub type DynamicResult<Ok> = Result<Ok, ErrorDesc>;
 
+///
 /// The basic error descriptions for why a dynamically typed resource operation didn't work. It does
 /// not contain however, the description for unit-related errors which handled with a `UnitError` by
 /// using the `Unit` variant of `ErrorDesc`.
-#[derive(Debug, PartialEq)]
+///
+/// # Note
+/// This implements [`BitAnd`]
+///
+/// Used for combining errors; This will combine certain errors into more concise errors.
+/// ## Example
+/// ```
+/// use restor::{ErrorDesc, UnitError};
+/// let a = ErrorDesc::Unit(UnitError::OutOfBounds);
+/// let b = ErrorDesc::BorrowedIncompatibly;
+/// let combo = a & b;
+/// assert_eq!(
+///     combo,
+///     ErrorDesc::Two(Box::new(
+///                 (ErrorDesc::Unit(UnitError::OutOfBounds),
+///                  ErrorDesc::BorrowedIncompatibly)
+///     ))
+/// );
+/// let a = ErrorDesc::Unit(UnitError::IsNotMany);
+/// let b = ErrorDesc::Unit(UnitError::IsNotOne);
+/// assert_eq!(
+///     a & b,
+///     ErrorDesc::Unit(UnitError::IsNone)
+/// );
+/// ```
+/// [`BitAnd`]: https://doc.rust-lang.org/std/ops/trait.BitAnd.html
+///
+#[derive(Debug, PartialEq, Clone)]
 pub enum ErrorDesc {
     /// Returned if there is an incompatible borrow on the contents of the unit. It follows the same
     /// rules for runtime checking as a `RefCell<T>`. Usually bundled with a `Ref<T>`/`RefMut<T>` in
@@ -68,7 +96,7 @@ impl BitAnd for ErrorDesc {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum UnitError {
     IsNotOne,
     IsNotMany,

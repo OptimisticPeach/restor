@@ -186,7 +186,7 @@ impl<'a, T: 'static + Send> Unit<'a> for MutexUnit<StorageUnit<T>> {
                 None
             }
         } else {
-            None
+            panic!("Wrong function type passed to `run_for`!");
         }
     }
 
@@ -196,6 +196,7 @@ impl<'a, T: 'static + Send> Unit<'a> for MutexUnit<StorageUnit<T>> {
 }
 
 unsafe impl<T: Send> Send for MutexUnit<StorageUnit<T>> {}
+unsafe impl<T: Send> Sync for MutexUnit<StorageUnit<T>> {}
 
 pub struct RwLockUnit<T> {
     inner: RwLock<T>,
@@ -386,7 +387,7 @@ impl<'a, T: 'static + Send> Unit<'a> for RwLockUnit<StorageUnit<T>> {
                 None
             }
         } else {
-            None
+            panic!("Wrong function type passed to `run_for`!");
         }
     }
 
@@ -397,26 +398,19 @@ impl<'a, T: 'static + Send> Unit<'a> for RwLockUnit<StorageUnit<T>> {
 
 unsafe impl<T: Send> Send for RwLockUnit<StorageUnit<T>> {}
 
-pub struct RwLockStorage(
-    BlackBox<
-        (dyn for<'a> Unit<
-            'a,
-            Borrowed = MappedRwLockReadGuard<'a, (dyn Any + Send)>,
-            MutBorrowed = MappedRwLockWriteGuard<'a, (dyn Any + Send)>,
-            Owned = Box<(dyn Any + Send)>,
-        > + Send),
-    >,
-);
+type RwLockBlackBox = BlackBox<
+    (dyn for<'a> Unit<
+        'a,
+        Borrowed = MappedRwLockReadGuard<'a, (dyn Any + Send)>,
+        MutBorrowed = MappedRwLockWriteGuard<'a, (dyn Any + Send)>,
+        Owned = Box<(dyn Any + Send)>,
+    > + Send),
+>;
+
+pub struct RwLockStorage(RwLockBlackBox);
 
 impl Deref for RwLockStorage {
-    type Target = BlackBox<
-        (dyn for<'a> Unit<
-            'a,
-            Borrowed = MappedRwLockReadGuard<'a, (dyn Any + Send)>,
-            MutBorrowed = MappedRwLockWriteGuard<'a, (dyn Any + Send)>,
-            Owned = Box<(dyn Any + Send)>,
-        > + Send),
-    >;
+    type Target = RwLockBlackBox;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -433,5 +427,12 @@ impl RwLockStorage {
             .or_insert_with(|| Box::new(RwLockUnit::new(StorageUnit::<T>::new())));
     }
 }
+
+impl Default for RwLockStorage {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 unsafe impl Send for RwLockStorage {}
 unsafe impl Sync for RwLockStorage {}

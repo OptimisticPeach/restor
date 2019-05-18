@@ -7,7 +7,7 @@ use std::ops::{Deref, DerefMut};
 mod unit;
 
 pub use crate::black_box::unit::{DynamicResult, ErrorDesc, StorageUnit, Unit, UnitError};
-use crate::concurrent_black_box::{MutexUnit, RwLockUnit};
+use crate::concurrent_black_box::MutexUnit;
 
 mod refcell_unit;
 
@@ -438,6 +438,38 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
             .map(|x| x.downcast_ref().unwrap()))
     }
 
+    ///
+    /// Indexes into the given type's storage and accesses the value at the given point.
+    ///
+    /// This, like all other `*ind*` methods will return the only element in the storage
+    /// if it is given the index of `0` and there is only one piece of data in the storage.
+    ///
+    /// # Note
+    /// This method is only available for use in the case where the underlying
+    /// interior mutability type supports it:
+    ///
+    /// - `RwLockStorage`: `RwLock`s
+    /// - `DynamicStorage`: `RefCell`s
+    ///
+    /// And so therefor it is not implemented in the case of `MutexStorage`
+    ///
+    /// # Example
+    /// ```
+    /// # fn main() {
+    /// use restor::{DynamicStorage, make_storage};
+    ///
+    /// let storage = make_storage!(DynamicStorage: usize);
+    /// storage.insert_many(vec![1usize, 2, 4, 8, 16, 32, 64]).unwrap();
+    ///
+    /// assert_eq!(*storage.ind::<usize>(2).unwrap(), 4usize);
+    ///
+    /// storage.extract_many::<usize>().unwrap(); // Storage now holds 0 items and is `StorageUnit::Nope`
+    /// storage.insert(128usize); // Storage now holds only 1 item and is `StorageUnit::One(128)`
+    ///
+    /// assert_eq!(*storage.ind::<usize>(0).unwrap(), 128usize);
+    /// # }
+    /// ```
+    ///
     #[inline]
     pub fn ind<'a, T: 'static + Send>(
         &'a self,
@@ -452,12 +484,77 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
             .map(|x| x.downcast_ref().unwrap()))
     }
 
+    ///
+    /// Takes a function and runs it on the internal slice of data.
+    ///
+    /// The function may return a piece of data, using an `Option<T>`,
+    /// but in the case that there is no data returned, you must call
+    /// the function using a unit return type.
+    ///
+    /// The function takes a `Result<&[T], ErrorDesc>`, so it is responsible
+    /// for handling the case that there isn't available data or it's
+    /// incompatibly borrowed or locked.
+    ///
+    /// The function is also `FnMut` so it can therefore mutate state
+    /// such as a `move ||` closure.
+    ///
+    /// # Example
+    /// ### Return nothing
+    /// ```
+    /// # fn main() {
+    /// use restor::{DynamicStorage, make_storage};
+    /// let storage = make_storage!(DynamicStorage: usize);
+    /// storage.insert_many(vec![1usize, 2, 4, 8, 16, 32, 64, 128]).unwrap();
+    /// storage.run_for::<usize, (), _>(|x| {
+    ///     assert_eq!(x.unwrap().iter().sum::<usize>(), 0b11111111);
+    ///     None
+    /// });
+    /// # }
+    /// ```
+    /// ### Return something
+    /// ```
+    /// # fn main() {
+    /// use restor::{DynamicStorage, make_storage};
+    /// let storage = make_storage!(DynamicStorage: usize);
+    /// storage.insert_many(vec![0usize, 1, 2, 3, 4, 5, 6, 7]).unwrap();
+    /// let transformed = storage.run_for::<usize, _, _>(|x| {
+    ///     Some(x.unwrap()
+    ///      .iter()
+    ///      .cloned()
+    ///      .map(|nx| 2usize.pow(nx as u32))
+    ///      .collect::<Vec<_>>())
+    ///
+    /// }).unwrap();
+    /// assert_eq!(transformed,
+    ///     vec![1, 2, 4, 8, 16, 32, 64, 128]
+    /// );
+    /// # }
+    /// ```
+    /// ### Handle error case
+    /// ```
+    /// # fn main() {
+    /// use restor::{DynamicStorage, make_storage};
+    /// let storage = make_storage!(DynamicStorage: usize);
+    /// storage.insert_many(vec![1usize, 2, 4, 8, 16, 32, 64, 128]).unwrap();
+    /// let res = storage.run_for::<usize, usize, _>(|x| {
+    ///     match x {
+    ///         Ok(x) => Some(x.iter().sum::<usize>()),
+    ///         Err(e) => {
+    ///             println!("{:?}", e);
+    ///             None
+    ///         }
+    ///     }
+    /// });
+    /// println!("{:?}", res);
+    /// # }
+    /// ```
+    ///
     #[inline]
     pub fn run_for<
         'a,
         T: 'static + Send,
         D: 'static + Any,
-        F: FnMut(DynamicResult<&[T]>) -> Option<D>,
+        F: FnMut(DynamicResult<&[T]>) -> Option<D> + 'a,
     >(
         &self,
         mut f: F,
@@ -475,9 +572,7 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
 
         let t = TypeId::of::<(dyn FnMut(DynamicResult<&[T]>) -> Option<Box<dyn Any>>)>();
 
-        let unit = self.unit_get::<T>();
-
-        if let Ok(x) = unit {
+        if let Ok(x) = self.unit_get::<T>() {
             unsafe {
                 let val = x.run_for((t, ptr));
                 val.map(|x| *x.downcast().unwrap())
@@ -492,28 +587,11 @@ impl
     BlackBox<
         (dyn for<'a> Unit<
             'a,
-            Borrowed = MappedRwLockReadGuard<'a, (dyn Any + Send)>,
-            MutBorrowed = MappedRwLockWriteGuard<'a, (dyn Any + Send)>,
-            Owned = Box<(dyn Any + Send)>,
-        > + Send),
-    >
-{
-    #[inline]
-    pub fn allocate_for<T: 'static + Send>(&mut self) {
-        self.data
-            .entry(TypeId::of::<T>())
-            .or_insert_with(|| Box::new(RwLockUnit::new(StorageUnit::<T>::new())));
-    }
-}
-
-impl
-    BlackBox<
-        (dyn for<'a> Unit<
-            'a,
             Borrowed = MappedMutexGuard<'a, (dyn Any + Send)>,
             MutBorrowed = MappedMutexGuard<'a, (dyn Any + Send)>,
             Owned = Box<(dyn Any + Send)>,
-        > + Send),
+        > + Send
+             + Sync),
     >
 {
     #[inline]
@@ -549,7 +627,8 @@ unsafe impl Send
             Borrowed = MappedMutexGuard<'a, (dyn Any + Send)>,
             MutBorrowed = MappedMutexGuard<'a, (dyn Any + Send)>,
             Owned = Box<(dyn Any + Send)>,
-        > + Send),
+        > + Send
+             + Sync),
     >
 {
 }
@@ -561,7 +640,8 @@ unsafe impl Sync
             Borrowed = MappedMutexGuard<'a, (dyn Any + Send)>,
             MutBorrowed = MappedMutexGuard<'a, (dyn Any + Send)>,
             Owned = Box<(dyn Any + Send)>,
-        > + Send),
+        > + Send
+             + Sync),
     >
 {
 }

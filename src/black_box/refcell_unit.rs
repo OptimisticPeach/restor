@@ -185,7 +185,7 @@ impl<'a, T: 'static + Send> Unit<'a> for RefCellUnit<StorageUnit<T>> {
                 None
             }
         } else {
-            None
+            panic!("Wrong function type passed to `run_for`!");
         }
     }
 

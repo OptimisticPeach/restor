@@ -57,18 +57,18 @@ pub type DynamicStorage = BlackBox<
 ///
 /// # Example
 /// ```
-/// use restor::{DynamicStorage, storage};
-/// let x: DynamicStorage = storage!(DynamicStorage: usize, String, isize);
+/// use restor::{DynamicStorage, make_storage};
+/// let x: DynamicStorage = make_storage!(DynamicStorage: usize, String, isize);
 /// x.insert(0usize).unwrap();
 /// x.insert(String::new()).unwrap();
 /// x.insert(1isize).unwrap();
 /// ```
 ///
 #[macro_export]
-macro_rules! storage {
+macro_rules! make_storage {
     ($storagetype:ty $(: $($contents:ty),*)? ) => {
         {
-            let mut storage = $storagetype::new();
+            let mut storage = <$storagetype>::new();
             $(
                 $(
                     storage.allocate_for::<$contents>();

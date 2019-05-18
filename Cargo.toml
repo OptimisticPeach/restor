@@ -14,4 +14,3 @@ license = "MIT"
 
 [dependencies]
 parking_lot = "0.7.1"
-owning_ref = "0.4"

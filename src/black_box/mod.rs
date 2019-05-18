@@ -1,4 +1,3 @@
-use owning_ref::Erased;
 use parking_lot::{MappedMutexGuard, MappedRwLockReadGuard, MappedRwLockWriteGuard};
 use std::any::{Any, TypeId};
 use std::cell::{Ref, RefMut};
@@ -13,7 +12,6 @@ use crate::concurrent_black_box::{MutexUnit, RwLockUnit};
 mod refcell_unit;
 
 pub use crate::black_box::refcell_unit::*;
-use std::marker::PhantomData;
 
 pub type RefCellUnitTrait = dyn for<'a> Unit<
     'a,
@@ -196,7 +194,7 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
     /// storage.insert(0usize).unwrap();
     /// storage.insert(1usize).unwrap();
     /// storage.insert(2usize).unwrap();
-    /// storage.run_for::<usize>(&|x| {
+    /// storage.run_for::<usize, (), _>(|x| {
     ///     assert_eq!(x.unwrap().len(), 3);
     ///     None
     /// });
@@ -231,7 +229,7 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
     /// storage.allocate_for::<usize>();
     /// storage.insert_many(vec![0usize, 1, 2, 3]).unwrap();
     /// storage.insert_many(vec![4usize, 5, 6, 7]).unwrap();
-    /// storage.run_for::<usize>(&|x| {
+    /// storage.run_for::<usize, (), _>(|x| {
     ///     assert_eq!(x.unwrap(), &[0usize, 1, 2, 3, 4, 5, 6, 7]);
     ///     None
     /// });
@@ -336,9 +334,9 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
     /// storage.insert(String::new());
     /// storage.ind_mut::<String>(0).unwrap().push_str("def");
     /// assert_eq!(
-    ///		&storage.run_for::<String>(&|x| {
+    ///		&storage.run_for::<String, String, _>(|x| {
     /// 		let x = x.unwrap();
-    ///         Some(x[0] + &x[1])
+    ///         Some(x[0].clone() + &x[1])
     /// 	}).unwrap(),
     ///		"abcdef"
     /// );
@@ -383,15 +381,50 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
 
     ///
     /// Extracts multiple values and returns them in the form of
-    /// a `Box<[T]>` which can be turned into a `Vec<T>` using `.into()`
-
+    /// a `Box<[T]>` which can be turned into a `Vec<T>`.
     ///
+    /// # Example
+    ///
+    /// ```
+    /// # fn main() {
+    /// use restor::{DynamicStorage, make_storage};
+    /// let storage = make_storage!(DynamicStorage: usize);
+    /// storage.insert_many(vec![1usize, 2, 3, 4]).unwrap();
+    /// let v: Vec<usize> = storage.extract_many::<usize>().unwrap().into();
+    /// assert_eq!(v, vec![1usize, 2, 3, 4]);
+    /// # }
+    /// ```
     ///
     #[inline]
     pub fn extract_many<T: 'static + Send>(&self) -> DynamicResult<Box<[T]>> {
         Ok(*self.unit_get::<T>()?.extract_many()?.downcast().unwrap())
     }
 
+    ///
+    /// Gets an immutable lock on the single value variant of storage.
+    ///
+    /// This will return an `Err` in the case that it is either borrowed
+    /// incompatibly or there is no allocated unit.
+    ///
+    /// # Note
+    /// This method is only available for use in the case where the underlying
+    /// interior mutability type supports it:
+    ///
+    /// - `RwLockStorage`: `RwLock`s
+    /// - `DynamicStorage`: `RefCell`s
+    ///
+    /// And so therefor it is not implemented in the case of `MutexStorage`
+    ///
+    /// # Example
+    /// ```
+    /// # fn main() {
+    /// use restor::{DynamicStorage, make_storage};
+    /// let storage = make_storage!(DynamicStorage: usize);
+    /// storage.insert(32usize).unwrap();
+    /// println!("{}", &*storage.get::<usize>().unwrap());
+    /// # }
+    /// ```
+    ///
     #[inline]
     pub fn get<'a, T: 'static + Send>(
         &'a self,
@@ -434,20 +467,21 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
 
         let ptr = unsafe {
             std::mem::transmute::<_, (*const (), *const ())>(
-                Box::new(new_fn) as Box<(dyn Fn(DynamicResult<&[T]>) -> Option<Box<dyn Any>>)>
+                &new_fn as &dyn Fn(DynamicResult<&[T]>) -> Option<Box<dyn Any>>,
             )
         };
 
         let t = TypeId::of::<(dyn Fn(DynamicResult<&[T]>) -> Option<Box<dyn Any>> + 'static)>();
 
-        unsafe {
-            let unit = self.unit_get::<T>();
-            if let Ok(x) = unit {
+        let unit = self.unit_get::<T>();
+
+        if let Ok(x) = unit {
+            unsafe {
                 let val = x.run_for((t, ptr));
                 val.map(|x| *x.downcast().unwrap())
-            } else {
-                None
             }
+        } else {
+            None
         }
     }
 }
@@ -464,12 +498,9 @@ impl
 {
     #[inline]
     pub fn allocate_for<T: 'static + Send>(&mut self) {
-        if !self.has_unit::<T>() {
-            self.data.insert(
-                TypeId::of::<T>(),
-                Box::new(RwLockUnit::new(StorageUnit::<T>::new())),
-            );
-        }
+        self.data
+            .entry(TypeId::of::<T>())
+            .or_insert_with(|| Box::new(RwLockUnit::new(StorageUnit::<T>::new())));
     }
 }
 

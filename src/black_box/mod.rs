@@ -13,28 +13,11 @@ mod refcell_unit;
 
 pub use crate::black_box::refcell_unit::*;
 
-pub type RefCellUnitTrait = dyn for<'a> Unit<
-    'a,
-    Borrowed = Ref<'a, (dyn Any + Send)>,
-    MutBorrowed = RefMut<'a, (dyn Any + Send)>,
-    Owned = Box<(dyn Any + Send)>,
->;
-pub type MutexUnitTrait = dyn for<'a> Unit<
-    'a,
-    Borrowed = MappedMutexGuard<'a, (dyn Any + Send)>,
-    MutBorrowed = MappedMutexGuard<'a, (dyn Any + Send)>,
-    Owned = Box<(dyn Any + Send)>,
->;
-pub type RwLockUnitTrait = for<'a> Unit<
-    'a,
-    Borrowed = MappedRwLockReadGuard<'a, (dyn Any + Send)>,
-    MutBorrowed = MappedRwLockWriteGuard<'a, (dyn Any + Send)>,
-    Owned = Box<(dyn Any + Send)>,
->;
-
+///
 /// A trait forcing the implementor to implement a `map` function
 /// this is used to genericize over `MappedMutexGuard`,
 /// `MappedRwLockReadGuard` and `Ref`
+///
 pub trait Map<I: ?Sized, O: ?Sized>: Deref<Target = I> + Sized {
     type Output: Deref<Target = O>;
     type Func: Sized + 'static;

@@ -28,6 +28,28 @@
 mod black_box;
 mod concurrent_black_box;
 
+///
+/// The type alias for storage with interior mutability based on
+/// [`Mutex`]es. This allows the data that is put in to only need
+/// to be `T: Send`, because this only allows one thread to read
+/// or write to the data.
+///
+/// Because of the above, this also only has the mutable versions
+/// of functions implemented, as though a [`MutexGuard`] can only
+/// contain a mutable reference due to the nature of the mutex.
+///
+/// # Note
+/// - This can be used in any context a `DynamicStorage` can be used
+///   with the exception of the uses of non-mut functions
+/// - This type alias will soon disappear and instead be replaced
+///   a newtype, which will only permit `T: Send` type storage to
+///   be allocated.
+/// - Please defer to the [`make_storage`](../macro.make_storage.html)
+///   macro to create these with a shorthand.
+///
+/// [`Mutex`]: https://docs.rs/parking_lot/0.8.0/parking_lot/type.Mutex.html
+/// [`MutexGuard`]: https://docs.rs/parking_lot/0.8.0/parking_lot/type.MappedMutexGuard.html
+///
 pub type MutexStorage = BlackBox<
     (dyn for<'a> Unit<
         'a,
@@ -37,6 +59,21 @@ pub type MutexStorage = BlackBox<
     > + Send
          + Sync),
 >;
+
+///
+/// The type alias for storage with interior mutability based on
+/// [`RefCell`]s, only allowing for it exist on one thread. This
+/// library currently restrains what goes into the storage to
+/// `T: Send` because of how it is written, but that will change
+/// in the future. This is mostly used in single-threaded contexts,
+/// for example, the examples in this library's documentation.
+///
+/// # Note
+/// Please defer to the [`make_storage`](../macro.make_storage.html)
+/// macro to create these with a shorthand.
+///
+/// [`RefCell`]: https://doc.rust-lang.org/std/cell/struct.RefCell.html
+///
 pub type DynamicStorage = BlackBox<
     (dyn for<'a> Unit<
         'a,
@@ -47,7 +84,21 @@ pub type DynamicStorage = BlackBox<
 >;
 
 ///
-/// Shorthand for forming storage with preallocated types
+/// Shorthand for forming storage with preallocated types.
+/// It will also wrap it in an [`Arc`] (More below)
+///
+/// # Usage
+/// The syntax for the macro is as follows:
+/// ```no_run
+/// # fn main() {
+/// # use restor::make_storage;
+/// # struct OtherTypes;
+/// make_storage!(StorageType); // -> StorageType
+/// make_storage!(Arc StorageType); // -> Arc<StorageType>
+/// make_storage!(StorageType: String, usize, isize, i32, OtherTypes); // -> StorageType with types preallocated
+/// make_storage!(Arc StorageType: String, usize, isize, i32, OtherTypes); // -> StorageType with types preallocated
+/// # }
+/// ```
 ///
 /// # Example
 /// ```
@@ -55,8 +106,19 @@ pub type DynamicStorage = BlackBox<
 /// let x: DynamicStorage = make_storage!(DynamicStorage: usize, String, isize);
 /// x.insert(0usize).unwrap();
 /// x.insert(String::new()).unwrap();
-/// x.insert(1isize).unwrap();
 /// ```
+/// # Arc Example
+/// ```
+/// use restor::{RwLockStorage, make_storage};
+/// let x = make_storage!(Arc RwLockStorage: usize, String);
+/// let nx = x.clone();
+/// std::thread::spawn( move || {
+///     nx.insert(String::new()).unwrap();
+/// });
+/// x.insert(0usize);
+/// ```
+///
+/// [`Arc`]: https://doc.rust-lang.org/std/sync/struct.Arc.html
 ///
 #[macro_export]
 macro_rules! make_storage {
@@ -71,22 +133,14 @@ macro_rules! make_storage {
             storage
         }
     };
-    (Arc<$storagetype:ty> $(: $($contents:ty),*)? ) => {
+    (Arc $storage:ty $(: $($contents:ty),*)? ) => {
         {
-            let mut storage = $storagetype::new();
-            $(
-                $(
-                    storage.allocate_for::<$contents>();
-                )*
-            )?
-            ::std::arc::Arc::new(storage)
+            ::std::sync::Arc::new(make_storage!($storage $(: $($contents),*)?))
         }
     }
 }
 
-pub use black_box::{
-    BlackBox, ErrorDesc, MutexUnitTrait, RefCellUnitTrait, RwLockUnitTrait, Unit, UnitError,
-};
+pub use black_box::{BlackBox, ErrorDesc, Unit, UnitError};
 pub use concurrent_black_box::{MutexUnit, RwLockStorage, RwLockUnit};
 use parking_lot::MappedMutexGuard;
 use std::any::Any;

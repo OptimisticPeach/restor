@@ -315,7 +315,7 @@ impl<T: Clone> Clone for StorageUnit<T> {
 /// The type erasure trait for `restor`.
 ///
 /// This contains an interface for interacting with a `StorageUnit`
-/// wrapper, and should be ignored by the end user. 
+/// wrapper, and should be ignored by the end user.
 ///
 /// Exposed here are three types:
 /// - `Borrowed` which must deref to a `(dyn Any + Send)`

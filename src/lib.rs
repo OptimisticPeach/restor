@@ -93,6 +93,11 @@ pub type DynamicStorage = BlackBox<
 /// # fn main() {
 /// # use restor::make_storage;
 /// # struct OtherTypes;
+/// # struct StorageType;
+/// # impl StorageType {
+/// #     pub fn new() -> Self {StorageType}
+/// #     pub fn allocate_for<T>(&mut self) {}
+/// # }
 /// make_storage!(StorageType); // -> StorageType
 /// make_storage!(Arc StorageType); // -> Arc<StorageType>
 /// make_storage!(StorageType: String, usize, isize, i32, OtherTypes); // -> StorageType with types preallocated
@@ -141,7 +146,7 @@ macro_rules! make_storage {
 }
 
 pub use black_box::{BlackBox, ErrorDesc, Unit, UnitError};
-pub use concurrent_black_box::{MutexUnit, RwLockStorage, RwLockUnit};
+pub use concurrent_black_box::RwLockStorage;
 use parking_lot::MappedMutexGuard;
 use std::any::Any;
 use std::cell::{Ref, RefMut};

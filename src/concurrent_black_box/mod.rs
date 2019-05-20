@@ -407,6 +407,21 @@ type RwLockBlackBox = BlackBox<
     > + Send),
 >;
 
+///
+/// A wrapper for a `RwLock`-safe `BlackBox` that is `Send` + `Sync`!
+///
+/// This only allows for allocation of `T: Send + Sync + Any` units,
+/// making it safe to `impl Sync for RwLockStorage`.
+///
+/// This is done by `Deref`ing into the appropriate `BlackBox`, but not
+/// `DerefMut`ing into it. This prevents the user from using the
+/// `allocate_for` function from `BlackBox` and instead forces them to
+/// use `RwLockStorage`'s `allocate_for` function, which satisfies the
+/// above requirements.
+///
+/// This fits into the same context as any storage type provided by
+/// `restor`.
+///
 pub struct RwLockStorage(RwLockBlackBox);
 
 impl Deref for RwLockStorage {

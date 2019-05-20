@@ -7,7 +7,6 @@ use std::ops::{Deref, DerefMut};
 mod unit;
 
 pub use crate::black_box::unit::{DynamicResult, ErrorDesc, StorageUnit, Unit, UnitError};
-use crate::concurrent_black_box::MutexUnit;
 
 mod refcell_unit;
 
@@ -32,9 +31,7 @@ impl<'a, I: 'static + ?Sized, O: 'static + ?Sized> Map<I, O> for Ref<'a, I> {
     }
 }
 
-impl<'a, I: 'static + Send + ?Sized, O: 'static + Send + ?Sized> Map<I, O>
-    for MappedMutexGuard<'a, I>
-{
+impl<'a, I: 'static + ?Sized, O: 'static + ?Sized> Map<I, O> for MappedMutexGuard<'a, I> {
     type Output = MappedMutexGuard<'a, O>;
     type Func = for<'b> fn(&'b mut I) -> &'b mut O;
     fn map(self, f: Self::Func) -> MappedMutexGuard<'a, O> {
@@ -42,18 +39,18 @@ impl<'a, I: 'static + Send + ?Sized, O: 'static + Send + ?Sized> Map<I, O>
     }
 }
 
-impl<'a, I: 'static + Send + ?Sized, O: 'static + Send + ?Sized> Map<I, O>
-    for MappedRwLockReadGuard<'a, I>
-{
+impl<'a, I: 'static + ?Sized, O: 'static + ?Sized> Map<I, O> for MappedRwLockReadGuard<'a, I> {
     type Output = MappedRwLockReadGuard<'a, O>;
     type Func = for<'b> fn(&'b I) -> &'b O;
     fn map(self, f: Self::Func) -> MappedRwLockReadGuard<'a, O> {
         MappedRwLockReadGuard::map(self, f)
     }
 }
+///
 /// A trait forcing the implementor to implement a `map` method
 /// this is used to genericize over `MappedMutexGuard` and
 /// `MappedRwLockWriteGuard` and `RefMut`
+///
 pub trait MapMut<I: ?Sized, O: ?Sized>: Deref<Target = I> + Sized + DerefMut {
     type Output: Deref<Target = O> + DerefMut;
     type Func: Sized + 'static;
@@ -68,9 +65,7 @@ impl<'a, I: 'static + ?Sized, O: 'static + ?Sized> MapMut<I, O> for RefMut<'a, I
     }
 }
 
-impl<'a, I: 'static + Send + ?Sized, O: 'static + Send + ?Sized> MapMut<I, O>
-    for MappedRwLockWriteGuard<'a, I>
-{
+impl<'a, I: 'static + ?Sized, O: 'static + ?Sized> MapMut<I, O> for MappedRwLockWriteGuard<'a, I> {
     type Output = MappedRwLockWriteGuard<'a, O>;
     type Func = for<'b> fn(&'b mut I) -> &'b mut O;
     fn map(self, f: Self::Func) -> MappedRwLockWriteGuard<'a, O> {
@@ -78,9 +73,7 @@ impl<'a, I: 'static + Send + ?Sized, O: 'static + Send + ?Sized> MapMut<I, O>
     }
 }
 
-impl<'a, I: 'static + Send + ?Sized, O: 'static + Send + ?Sized> MapMut<I, O>
-    for MappedMutexGuard<'a, I>
-{
+impl<'a, I: 'static + ?Sized, O: 'static + ?Sized> MapMut<I, O> for MappedMutexGuard<'a, I> {
     type Output = MappedMutexGuard<'a, O>;
     type Func = for<'b> fn(&'b mut I) -> &'b mut O;
     fn map(self, f: Self::Func) -> MappedMutexGuard<'a, O> {
@@ -121,7 +114,7 @@ pub struct BlackBox<U: ?Sized> {
 type Borrowed<'a, T> = <T as Unit<'a>>::Borrowed;
 type MutBorrowed<'a, T> = <T as Unit<'a>>::MutBorrowed;
 
-impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
+impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     ///
     /// A default implementation of `BlackBox`
     ///
@@ -146,7 +139,7 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
     /// # }
     /// ```
     #[inline]
-    pub fn has_unit<T: 'static + Send>(&self) -> bool {
+    pub fn has_unit<T: 'static>(&self) -> bool {
         self.data.contains_key(&TypeId::of::<T>())
     }
 
@@ -187,7 +180,7 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
     /// ## Note
     /// This returns a `Result<(), (T, ErrorDesc)>` for ease of use, with calling `.unwrap()`.
     ///
-    pub fn insert<T: 'static + Send>(&self, data: T) -> Result<(), (T, ErrorDesc)> {
+    pub fn insert<T: 'static>(&self, data: T) -> Result<(), (T, ErrorDesc)> {
         let entry = self.data.get(&TypeId::of::<T>());
         match entry {
             Some(x) => match x.insert_any(Box::new(data)) {
@@ -223,7 +216,7 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
     /// This returns the `Vec` passed to it in the case of an erroneous attempt
     /// at inserting into the storage.
     ///
-    pub fn insert_many<T: 'static + Send>(&self, data: Vec<T>) -> Result<(), (Vec<T>, ErrorDesc)> {
+    pub fn insert_many<T: 'static>(&self, data: Vec<T>) -> Result<(), (Vec<T>, ErrorDesc)> {
         if let Some(unit) = self.data.get(&TypeId::of::<T>()) {
             if let Some((ret, e)) = unit.insert_any(Box::new(data)) {
                 Err((*ret.downcast().unwrap(), e))
@@ -239,7 +232,7 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
     /// Internal function. Returns a reference to the `Unit` for `T`
     ///
     #[inline]
-    fn unit_get<T: 'static + Send>(&self) -> DynamicResult<&U> {
+    fn unit_get<T: 'static>(&self) -> DynamicResult<&U> {
         self.data
             .get(&TypeId::of::<T>())
             .map(|x| &**x)
@@ -283,11 +276,11 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
     /// [`RefMut<'a, T>`]: https://doc.rust-lang.org/std/cell/struct.RefMut.html
     ///
     #[inline]
-    pub fn get_mut<'a, T: 'static + Send>(
+    pub fn get_mut<'a, T: 'static>(
         &'a self,
-    ) -> DynamicResult<<MutBorrowed<'a, U> as MapMut<(dyn Any + Send), T>>::Output>
+    ) -> DynamicResult<<MutBorrowed<'a, U> as MapMut<dyn Any, T>>::Output>
     where
-        MutBorrowed<'a, U>: MapMut<(dyn Any + Send), T, Func = fn(&mut (dyn Any + Send)) -> &mut T>,
+        MutBorrowed<'a, U>: MapMut<dyn Any, T, Func = fn(&mut dyn Any) -> &mut T>,
     {
         Ok(self
             .unit_get::<T>()?
@@ -327,12 +320,12 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
     /// ```
     ///
     #[inline]
-    pub fn ind_mut<'a, T: 'static + Send>(
+    pub fn ind_mut<'a, T: 'static>(
         &'a self,
         ind: usize,
-    ) -> DynamicResult<<MutBorrowed<'a, U> as MapMut<(dyn Any + Send), T>>::Output>
+    ) -> DynamicResult<<MutBorrowed<'a, U> as MapMut<dyn Any, T>>::Output>
     where
-        MutBorrowed<'a, U>: MapMut<(dyn Any + Send), T, Func = fn(&mut (dyn Any + Send)) -> &mut T>,
+        MutBorrowed<'a, U>: MapMut<dyn Any, T, Func = fn(&mut dyn Any) -> &mut T>,
     {
         Ok(self
             .unit_get::<T>()?
@@ -358,7 +351,7 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
     /// ```
     ///
     #[inline]
-    pub fn extract<T: 'static + Send>(&self) -> DynamicResult<T> {
+    pub fn extract<T: 'static>(&self) -> DynamicResult<T> {
         Ok(*self.unit_get::<T>()?.extract()?.downcast().unwrap())
     }
 
@@ -379,7 +372,7 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
     /// ```
     ///
     #[inline]
-    pub fn extract_many<T: 'static + Send>(&self) -> DynamicResult<Vec<T>> {
+    pub fn extract_many<T: 'static>(&self) -> DynamicResult<Vec<T>> {
         Ok(*self.unit_get::<T>()?.extract_many()?.downcast().unwrap())
     }
 
@@ -409,11 +402,11 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
     /// ```
     ///
     #[inline]
-    pub fn get<'a, T: 'static + Send>(
+    pub fn get<'a, T: 'static>(
         &'a self,
-    ) -> DynamicResult<<Borrowed<'a, U> as Map<(dyn Any + Send), T>>::Output>
+    ) -> DynamicResult<<Borrowed<'a, U> as Map<dyn Any, T>>::Output>
     where
-        Borrowed<'a, U>: Map<(dyn Any + Send), T, Func = for<'b> fn(&'b (dyn Any + Send)) -> &'b T>,
+        Borrowed<'a, U>: Map<dyn Any, T, Func = for<'b> fn(&'b dyn Any) -> &'b T>,
     {
         Ok(self
             .unit_get::<T>()?
@@ -454,12 +447,12 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
     /// ```
     ///
     #[inline]
-    pub fn ind<'a, T: 'static + Send>(
+    pub fn ind<'a, T: 'static>(
         &'a self,
         ind: usize,
-    ) -> DynamicResult<<Borrowed<'a, U> as Map<(dyn Any + Send), T>>::Output>
+    ) -> DynamicResult<<Borrowed<'a, U> as Map<dyn Any, T>>::Output>
     where
-        Borrowed<'a, U>: Map<(dyn Any + Send), T, Func = for<'b> fn(&'b (dyn Any + Send)) -> &'b T>,
+        Borrowed<'a, U>: Map<dyn Any, T, Func = for<'b> fn(&'b dyn Any) -> &'b T>,
     {
         Ok(self
             .unit_get::<T>()?
@@ -535,7 +528,7 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<(dyn Any + Send)>>> BlackBox<U> {
     #[inline]
     pub fn run_for<
         'a,
-        T: 'static + Send,
+        T: 'static,
         D: 'static + Any,
         F: FnMut(DynamicResult<&[T]>) -> Option<D> + 'a,
     >(
@@ -570,61 +563,16 @@ impl
     BlackBox<
         (dyn for<'a> Unit<
             'a,
-            Borrowed = MappedMutexGuard<'a, (dyn Any + Send)>,
-            MutBorrowed = MappedMutexGuard<'a, (dyn Any + Send)>,
-            Owned = Box<(dyn Any + Send)>,
-        > + Send
-             + Sync),
-    >
-{
-    #[inline]
-    pub fn allocate_for<T: 'static + Send>(&mut self) {
-        self.data
-            .entry(TypeId::of::<T>())
-            .or_insert_with(|| Box::new(MutexUnit::new(StorageUnit::<T>::new())));
-    }
-}
-
-impl
-    BlackBox<
-        (dyn for<'a> Unit<
-            'a,
-            Borrowed = Ref<'a, (dyn Any + Send)>,
-            MutBorrowed = RefMut<'a, (dyn Any + Send)>,
-            Owned = Box<(dyn Any + Send)>,
+            Borrowed = Ref<'a, dyn Any>,
+            MutBorrowed = RefMut<'a, dyn Any>,
+            Owned = Box<dyn Any>,
         >),
     >
 {
     #[inline]
-    pub fn allocate_for<T: 'static + Send>(&mut self) {
+    pub fn allocate_for<T: 'static>(&mut self) {
         self.data
             .entry(TypeId::of::<T>())
             .or_insert_with(|| Box::new(RefCellUnit::new(StorageUnit::<T>::new())));
     }
-}
-
-unsafe impl Send
-    for BlackBox<
-        (dyn for<'a> Unit<
-            'a,
-            Borrowed = MappedMutexGuard<'a, (dyn Any + Send)>,
-            MutBorrowed = MappedMutexGuard<'a, (dyn Any + Send)>,
-            Owned = Box<(dyn Any + Send)>,
-        > + Send
-             + Sync),
-    >
-{
-}
-
-unsafe impl Sync
-    for BlackBox<
-        (dyn for<'a> Unit<
-            'a,
-            Borrowed = MappedMutexGuard<'a, (dyn Any + Send)>,
-            MutBorrowed = MappedMutexGuard<'a, (dyn Any + Send)>,
-            Owned = Box<(dyn Any + Send)>,
-        > + Send
-             + Sync),
-    >
-{
 }

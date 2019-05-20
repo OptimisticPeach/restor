@@ -318,15 +318,15 @@ impl<T: Clone> Clone for StorageUnit<T> {
 /// wrapper, and should be ignored by the end user.
 ///
 /// Exposed here are three types:
-/// - `Borrowed` which must deref to a `(dyn Any + Send)`
+/// - `Borrowed` which must deref to a `dyn Any`
 ///   - [`Ref`] in the case of `DynamicStorage`
 ///   - [`MappedRwLockReadGuard`] in the case of `RwLockStorage`
 ///   - [`MappedMutexGuard`] in the case of `MutexStorage`
-/// - `MutBorrowed` which must deref_mut to a `(dyn Any + Send)`
+/// - `MutBorrowed` which must deref_mut to a `dyn Any`
 ///   - [`RefMut`] in the case of `DynamicStorage`
 ///   - [`MappedRwLockWriteGuard`] in the case of `MutexStorage`
 ///   - [`MappedMutexGuard`] in the case of `MutexStorage`
-/// - `Owned` which must deref to a `(dyn Any + Send)`, usually `Box<(dyn Any + Send)>`
+/// - `Owned` which must deref to a `dyn Any`, usually `Box<dyn Any>`
 ///   - [`Box`] in the case of `DynamicStorage`, `MutexStorage`, and `RwLockStorage`
 ///
 /// [`Ref`]: https://doc.rust-lang.org/std/cell/struct.Ref.html
@@ -340,9 +340,9 @@ impl<T: Clone> Clone for StorageUnit<T> {
 /// [`Box`]: https://doc.rust-lang.org/std/boxed/struct.Box.html
 ///
 pub trait Unit<'a> {
-    type Borrowed: Deref<Target = (dyn Any + Send)> + 'a;
-    type MutBorrowed: Deref<Target = (dyn Any + Send)> + DerefMut + 'a;
-    type Owned: Deref<Target = (dyn Any + Send)> + DerefMut;
+    type Borrowed: Deref<Target = dyn Any> + 'a;
+    type MutBorrowed: Deref<Target = dyn Any> + DerefMut + 'a;
+    type Owned: Deref<Target = dyn Any> + DerefMut;
 
     ///
     /// Returns an immutable lock to one piece of data.
@@ -422,9 +422,9 @@ pub trait Unit<'a> {
 
 impl<
         'a,
-        R: Deref<Target = (dyn Any + Send)> + 'a,
-        RM: Deref<Target = (dyn Any + Send)> + DerefMut + 'a,
-        O: Deref<Target = (dyn Any + Send)> + DerefMut,
+        R: Deref<Target = dyn Any> + 'a,
+        RM: Deref<Target = dyn Any> + DerefMut + 'a,
+        O: Deref<Target = dyn Any> + DerefMut,
     > PartialEq for dyn Unit<'a, Borrowed = R, MutBorrowed = RM, Owned = O>
 {
     fn eq(&self, other: &Self) -> bool {
@@ -434,9 +434,9 @@ impl<
 
 impl<
         'a,
-        R: Deref<Target = (dyn Any + Send)> + 'a,
-        RM: Deref<Target = (dyn Any + Send)> + DerefMut + 'a,
-        O: Deref<Target = (dyn Any + Send)> + DerefMut,
+        R: Deref<Target = dyn Any> + 'a,
+        RM: Deref<Target = dyn Any> + DerefMut + 'a,
+        O: Deref<Target = dyn Any> + DerefMut,
     > Debug for dyn Unit<'a, Borrowed = R, MutBorrowed = RM, Owned = O>
 {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {

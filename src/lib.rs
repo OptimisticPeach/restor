@@ -30,38 +30,6 @@ mod concurrent_black_box;
 
 ///
 /// The type alias for storage with interior mutability based on
-/// [`Mutex`]es. This allows the data that is put in to only need
-/// to be `T: Send`, because this only allows one thread to read
-/// or write to the data.
-///
-/// Because of the above, this also only has the mutable versions
-/// of functions implemented, as though a [`MutexGuard`] can only
-/// contain a mutable reference due to the nature of the mutex.
-///
-/// # Note
-/// - This can be used in any context a `DynamicStorage` can be used
-///   with the exception of the uses of non-mut functions
-/// - This type alias will soon disappear and instead be replaced
-///   a newtype, which will only permit `T: Send` type storage to
-///   be allocated.
-/// - Please defer to the [`make_storage`](../macro.make_storage.html)
-///   macro to create these with a shorthand.
-///
-/// [`Mutex`]: https://docs.rs/parking_lot/0.8.0/parking_lot/type.Mutex.html
-/// [`MutexGuard`]: https://docs.rs/parking_lot/0.8.0/parking_lot/type.MappedMutexGuard.html
-///
-pub type MutexStorage = BlackBox<
-    (dyn for<'a> Unit<
-        'a,
-        Borrowed = MappedMutexGuard<'a, (dyn Any + Send)>,
-        MutBorrowed = MappedMutexGuard<'a, (dyn Any + Send)>,
-        Owned = Box<(dyn Any + Send)>,
-    > + Send
-         + Sync),
->;
-
-///
-/// The type alias for storage with interior mutability based on
 /// [`RefCell`]s, only allowing for it exist on one thread. This
 /// library currently restrains what goes into the storage to
 /// `T: Send` because of how it is written, but that will change
@@ -77,9 +45,9 @@ pub type MutexStorage = BlackBox<
 pub type DynamicStorage = BlackBox<
     (dyn for<'a> Unit<
         'a,
-        Borrowed = Ref<'a, (dyn Any + Send)>,
-        MutBorrowed = RefMut<'a, (dyn Any + Send)>,
-        Owned = Box<(dyn Any + Send)>,
+        Borrowed = Ref<'a, dyn Any>,
+        MutBorrowed = RefMut<'a, dyn Any>,
+        Owned = Box<dyn Any>,
     >),
 >;
 
@@ -146,7 +114,6 @@ macro_rules! make_storage {
 }
 
 pub use black_box::{BlackBox, ErrorDesc, Unit, UnitError};
-pub use concurrent_black_box::RwLockStorage;
-use parking_lot::MappedMutexGuard;
+pub use concurrent_black_box::{MutexStorage, RwLockStorage};
 use std::any::Any;
 use std::cell::{Ref, RefMut};

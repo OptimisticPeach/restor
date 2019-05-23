@@ -27,6 +27,7 @@
 //!
 mod black_box;
 mod concurrent_black_box;
+mod macros;
 
 ///
 /// The type alias for storage with interior mutability based on

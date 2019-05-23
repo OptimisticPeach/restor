@@ -10,7 +10,6 @@ use parking_lot::{
     MappedMutexGuard, MappedRwLockReadGuard, MappedRwLockWriteGuard, Mutex, MutexGuard, RwLock,
     RwLockReadGuard, RwLockWriteGuard,
 };
-use std::ops::Deref;
 
 pub struct MutexUnit<T> {
     inner: Mutex<T>,
@@ -407,6 +406,10 @@ type RwLockBlackBox = BlackBox<
 ///
 /// A wrapper for a `RwLock`-safe `BlackBox` that is `Send` + `Sync`!
 ///
+/// > ## Please note!
+/// > The documentation for the functions implemented for this type are
+/// > found in [`BlackBox`]'s documentation under the same name.
+///
 /// This only allows for allocation of `T: Send + Sync + Any` units,
 /// making it safe to `impl Sync for RwLockStorage`.
 ///
@@ -419,24 +422,15 @@ type RwLockBlackBox = BlackBox<
 /// This fits into the same context as any storage type provided by
 /// `restor`.
 ///
-pub struct RwLockStorage(RwLockBlackBox);
-
-impl Deref for RwLockStorage {
-    type Target = RwLockBlackBox;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+pub struct RwLockStorage {
+    black_box: RwLockBlackBox
 }
+
+crate::impl_unit!(RwLockStorage, (dyn Any + Send + Sync), (Send + Sync + Any), RwLockUnit, MappedRwLockWriteGuard, MappedRwLockReadGuard, black_box, add_unmut);
 
 impl RwLockStorage {
     pub fn new() -> Self {
-        RwLockStorage(BlackBox::new())
-    }
-    pub fn allocate_for<T: Any + Send + Sync + 'static>(&mut self) {
-        self.0
-            .data
-            .entry(TypeId::of::<T>())
-            .or_insert_with(|| Box::new(RwLockUnit::new(StorageUnit::<T>::new())));
+        RwLockStorage {black_box: RwLockBlackBox::new()}
     }
 }
 
@@ -493,24 +487,15 @@ type MutexBlackBox = BlackBox<
 /// This fits into the same context as any storage type provided by
 /// `restor`.
 ///
-pub struct MutexStorage(MutexBlackBox);
-
-impl Deref for MutexStorage {
-    type Target = MutexBlackBox;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+pub struct MutexStorage {
+    black_box: MutexBlackBox
 }
+
+crate::impl_unit!(MutexStorage, (dyn Any + Send), (Send + Any), MutexUnit, MappedMutexGuard, MappedMutexGuard, black_box);
 
 impl MutexStorage {
     pub fn new() -> Self {
-        MutexStorage(BlackBox::new())
-    }
-    pub fn allocate_for<T: Any + Send + 'static>(&mut self) {
-        self.0
-            .data
-            .entry(TypeId::of::<T>())
-            .or_insert_with(|| Box::new(MutexUnit::new(StorageUnit::<T>::new())));
+        MutexStorage { black_box: BlackBox::new() }
     }
 }
 

@@ -423,14 +423,25 @@ type RwLockBlackBox = BlackBox<
 /// `restor`.
 ///
 pub struct RwLockStorage {
-    black_box: RwLockBlackBox
+    black_box: RwLockBlackBox,
 }
 
-crate::impl_unit!(RwLockStorage, (dyn Any + Send + Sync), (Send + Sync + Any), RwLockUnit, MappedRwLockWriteGuard, MappedRwLockReadGuard, black_box, add_unmut);
+crate::impl_unit!(
+    RwLockStorage,
+    (dyn Any + Send + Sync),
+    (Send + Sync + Any),
+    RwLockUnit,
+    MappedRwLockWriteGuard,
+    MappedRwLockReadGuard,
+    black_box,
+    add_unmut
+);
 
 impl RwLockStorage {
     pub fn new() -> Self {
-        RwLockStorage {black_box: RwLockBlackBox::new()}
+        RwLockStorage {
+            black_box: RwLockBlackBox::new(),
+        }
     }
 }
 
@@ -461,11 +472,14 @@ type MutexBlackBox = BlackBox<
 /// of functions implemented, as though a [`MutexGuard`] can only
 /// contain a mutable reference due to the nature of the mutex.
 ///
-/// # Note
-/// - This can be used in any context a `DynamicStorage` can be used
-///   with the exception of the uses of non-mut functions
-/// - Please refer to the [`make_storage`](../macro.make_storage.html)
-///   macro to create these with a shorthand.
+/// > ## Please note!
+/// > The documentation for the functions implemented for this type are
+/// > found in [`BlackBox`]'s documentation under the same name.
+///
+/// This can be used in any context a `DynamicStorage` can be used
+/// with the exception of the uses of non-mut functions
+/// Please refer to the [`make_storage`](../macro.make_storage.html)
+/// macro to create these with a shorthand.
 ///
 /// [`Mutex`]: https://docs.rs/parking_lot/0.8.0/parking_lot/type.Mutex.html
 /// [`MutexGuard`]: https://docs.rs/parking_lot/0.8.0/parking_lot/type.MappedMutexGuard.html
@@ -488,14 +502,24 @@ type MutexBlackBox = BlackBox<
 /// `restor`.
 ///
 pub struct MutexStorage {
-    black_box: MutexBlackBox
+    black_box: MutexBlackBox,
 }
 
-crate::impl_unit!(MutexStorage, (dyn Any + Send), (Send + Any), MutexUnit, MappedMutexGuard, MappedMutexGuard, black_box);
+crate::impl_unit!(
+    MutexStorage,
+    (dyn Any + Send),
+    (Send + Any),
+    MutexUnit,
+    MappedMutexGuard,
+    MappedMutexGuard,
+    black_box
+);
 
 impl MutexStorage {
     pub fn new() -> Self {
-        MutexStorage { black_box: BlackBox::new() }
+        MutexStorage {
+            black_box: BlackBox::new(),
+        }
     }
 }
 

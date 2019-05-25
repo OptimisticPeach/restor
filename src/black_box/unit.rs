@@ -402,7 +402,8 @@ pub trait Unit<'a> {
     ///   and the functions's vtable. This should not be created by the caller
     ///   and should instead be `std::mem::transmute`d from a preexisting function.
     ///
-    unsafe fn run_for(&self, func: (TypeId, (*const (), *const ()))) -> Option<Box<dyn Any>>;
+    unsafe fn run_for(&self, func: (TypeId, (*const (), *const ())))
+        -> DynamicResult<Box<dyn Any>>;
 
     ///
     /// Returns an immutable lock to the internal `StorageUnit<T>`

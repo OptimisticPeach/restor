@@ -173,16 +173,17 @@ impl<'a, T: 'static> Unit<'a> for RefCellUnit<StorageUnit<T>> {
             .ok_or(BorrowedIncompatibly)
     }
 
-    unsafe fn run_for(&self, (t, ptr): (TypeId, (*const (), *const ()))) -> Option<Box<dyn Any>> {
-        if t == TypeId::of::<dyn FnMut(DynamicResult<&[T]>) -> Option<Box<dyn Any>> + 'static>() {
+    unsafe fn run_for(
+        &self,
+        (t, ptr): (TypeId, (*const (), *const ())),
+    ) -> DynamicResult<Box<dyn Any>> {
+        if t == TypeId::of::<dyn FnMut(DynamicResult<&[T]>) -> Box<dyn Any> + 'static>() {
             if let Ok(x) = self.inner.try_borrow_mut() {
-                let func = std::mem::transmute::<
-                    _,
-                    &mut dyn Fn(DynamicResult<&[T]>) -> Option<Box<dyn Any>>,
-                >(ptr);
-                func(x.many())
+                let func =
+                    std::mem::transmute::<_, &mut dyn Fn(DynamicResult<&[T]>) -> Box<dyn Any>>(ptr);
+                Ok(func(x.many()))
             } else {
-                None
+                Err(ErrorDesc::BorrowedIncompatibly)
             }
         } else {
             panic!("Wrong function type passed to `run_for`!");

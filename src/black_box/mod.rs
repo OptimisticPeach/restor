@@ -172,7 +172,6 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     /// storage.insert(2usize).unwrap();
     /// storage.run_for::<usize, (), _>(|x| {
     ///     assert_eq!(x.unwrap().len(), 3);
-    ///     None
     /// });
     /// # }
     /// ```
@@ -207,7 +206,6 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     /// storage.insert_many(vec![4usize, 5, 6, 7]).unwrap();
     /// storage.run_for::<usize, (), _>(|x| {
     ///     assert_eq!(x.unwrap(), &[0usize, 1, 2, 3, 4, 5, 6, 7]);
-    ///     None
     /// });
     /// # }
     /// ```
@@ -312,7 +310,7 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     /// assert_eq!(
     ///		&storage.run_for::<String, String, _>(|x| {
     /// 		let x = x.unwrap();
-    ///         Some(x[0].clone() + &x[1])
+    ///         x[0].clone() + &x[1]
     /// 	}).unwrap(),
     ///		"abcdef"
     /// );
@@ -483,7 +481,6 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     /// storage.insert_many(vec![1usize, 2, 4, 8, 16, 32, 64, 128]).unwrap();
     /// storage.run_for::<usize, (), _>(|x| {
     ///     assert_eq!(x.unwrap().iter().sum::<usize>(), 0b11111111);
-    ///     None
     /// });
     /// # }
     /// ```
@@ -494,12 +491,11 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     /// let storage = make_storage!(DynamicStorage: usize);
     /// storage.insert_many(vec![0usize, 1, 2, 3, 4, 5, 6, 7]).unwrap();
     /// let transformed = storage.run_for::<usize, _, _>(|x| {
-    ///     Some(x.unwrap()
+    ///     x.unwrap()
     ///      .iter()
     ///      .cloned()
     ///      .map(|nx| 2usize.pow(nx as u32))
-    ///      .collect::<Vec<_>>())
-    ///
+    ///      .collect::<Vec<_>>()
     /// }).unwrap();
     /// assert_eq!(transformed,
     ///     vec![1, 2, 4, 8, 16, 32, 64, 128]
@@ -512,7 +508,7 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     /// use restor::{DynamicStorage, make_storage};
     /// let storage = make_storage!(DynamicStorage: usize);
     /// storage.insert_many(vec![1usize, 2, 4, 8, 16, 32, 64, 128]).unwrap();
-    /// let res = storage.run_for::<usize, usize, _>(|x| {
+    /// let res = storage.run_for::<usize, _, _>(|x| {
     ///     match x {
     ///         Ok(x) => Some(x.iter().sum::<usize>()),
     ///         Err(e) => {
@@ -526,35 +522,29 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     /// ```
     ///
     #[inline]
-    pub fn run_for<
-        'a,
-        T: 'static,
-        D: 'static + Any,
-        F: FnMut(DynamicResult<&[T]>) -> Option<D> + 'a,
-    >(
+    pub fn run_for<'a, T: 'static, D: 'static + Any, F: FnMut(DynamicResult<&[T]>) -> D + 'a>(
         &self,
         mut f: F,
-    ) -> Option<D> {
+    ) -> DynamicResult<D> {
         let mut new_fn = |x: DynamicResult<&[T]>| {
-            let var: Option<D> = f(x);
-            var.map(|x| Box::new(x) as Box<dyn Any>)
+            let var: D = f(x);
+            Box::new(var) as Box<dyn Any>
         };
 
         let ptr = unsafe {
             std::mem::transmute::<_, (*const (), *const ())>(
-                &mut new_fn as &mut dyn FnMut(DynamicResult<&[T]>) -> Option<Box<dyn Any>>,
+                &mut new_fn as &mut dyn FnMut(DynamicResult<&[T]>) -> Box<dyn Any>,
             )
         };
 
-        let t = TypeId::of::<(dyn FnMut(DynamicResult<&[T]>) -> Option<Box<dyn Any>>)>();
+        let t = TypeId::of::<(dyn FnMut(DynamicResult<&[T]>) -> Box<dyn Any>)>();
 
-        if let Ok(x) = self.unit_get::<T>() {
-            unsafe {
+        match self.unit_get::<T>() {
+            Ok(x) => unsafe {
                 let val = x.run_for((t, ptr));
                 val.map(|x| *x.downcast().unwrap())
-            }
-        } else {
-            None
+            },
+            Err(e) => Err(e),
         }
     }
 }

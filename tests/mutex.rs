@@ -3,6 +3,60 @@ use std::sync::Arc;
 use std::thread::spawn;
 use std::time::Duration;
 
+macro_rules! ok {
+    ($e:expr) => {
+        match $e {
+            Ok(x) => x,
+            Err(e) => panic!("Expected `Ok` but instead found `Err({:?})`", e),
+        }
+    };
+    ($e:expr, $other:expr) => {
+        match $e {
+            Ok(x) => {
+                assert_eq!(x, $other);
+                x
+            }
+            Err(e) => panic!("Expected `Ok` but instead found `Err({:?})`", e),
+        }
+    };
+    ($e:expr, $other:expr, *) => {
+        match $e {
+            Ok(x) => {
+                assert_eq!(*x, $other);
+                x
+            }
+            Err(e) => panic!("Expected `Ok` but instead found `Err({:?})`", e),
+        }
+    };
+}
+
+macro_rules! err {
+    ($e:expr) => {
+        match $e {
+            Ok(_) => panic!("Expected `Err` but instead found `Ok(_)`"),
+            Err(x) => x,
+        }
+    };
+    ($e:expr, $other:expr) => {
+        match $e {
+            Ok(x) => panic!("Expected `Err` but instead found `Ok(_)`"),
+            Err(e) => {
+                assert_eq!(e, $other);
+                e
+            }
+        }
+    };
+    ($e:expr, $other:expr, *) => {
+        match $e {
+            Ok(x) => panic!("Expected `Err` but instead found `Ok(_)`"),
+            Err(e) => {
+                assert_eq!(*e, $other);
+                e
+            }
+        }
+    };
+}
+
 #[test]
 fn instantiate() {
     let _ = MutexStorage::new();
@@ -72,10 +126,7 @@ fn ind_mut() {
     }
     {
         let y = x.ind_mut::<usize>(1);
-        assert!(y.is_ok());
-        if let Ok(z) = y {
-            assert_eq!(*z, 1usize);
-        }
+        ok!(y, 1usize, *);
     }
     {
         let y = x.ind_mut::<usize>(0);

@@ -1,3 +1,5 @@
+#![deny(bare_trait_objects)]
+
 //!
 //! A dynamically allocated storage system. Check it out on [Github][gh], or its capabilities on the
 //! [tests][ts]. This is meant to serve as a storage solution for resources in a dynamic context. It

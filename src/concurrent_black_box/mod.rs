@@ -173,16 +173,20 @@ impl<'a, T: 'static + Send> Unit<'a> for MutexUnit<StorageUnit<T>> {
     fn storage_mut(&'a self) -> DynamicResult<MappedMutexGuard<'a, dyn Any>> {
         self.storage()
     }
-    unsafe fn run_for(&self, (t, ptr): (TypeId, (*const (), *const ()))) -> Option<Box<dyn Any>> {
-        if t == TypeId::of::<dyn FnMut(DynamicResult<&[T]>) -> Option<Box<dyn Any>>>() {
+
+    unsafe fn run_for(
+        &self,
+        (t, ptr): (TypeId, (*const (), *const ())),
+    ) -> DynamicResult<Box<dyn Any>> {
+        if t == TypeId::of::<dyn FnMut(DynamicResult<&[T]>) -> Box<dyn Any>>() {
             if let Some(x) = self.inner.try_lock() {
                 let func = std::mem::transmute::<
                     _,
-                    &mut dyn FnMut(DynamicResult<&[T]>) -> Option<Box<dyn Any>>,
+                    &mut dyn FnMut(DynamicResult<&[T]>) -> Box<dyn Any>,
                 >(ptr);
-                func(x.many())
+                Ok(func(x.many()))
             } else {
-                None
+                Err(BorrowedIncompatibly)
             }
         } else {
             panic!("Wrong function type passed to `run_for`!");
@@ -371,16 +375,19 @@ impl<'a, T: 'static + Send> Unit<'a> for RwLockUnit<StorageUnit<T>> {
             Some((new, ErrorDesc::BorrowedIncompatibly))
         }
     }
-    unsafe fn run_for(&self, (t, ptr): (TypeId, (*const (), *const ()))) -> Option<Box<dyn Any>> {
-        if t == TypeId::of::<(dyn FnMut(DynamicResult<&[T]>) -> Option<Box<dyn Any>>)>() {
+    unsafe fn run_for(
+        &self,
+        (t, ptr): (TypeId, (*const (), *const ())),
+    ) -> DynamicResult<Box<dyn Any>> {
+        if t == TypeId::of::<(dyn FnMut(DynamicResult<&[T]>) -> Box<dyn Any>)>() {
             if let Some(x) = self.inner.try_read() {
                 let func = std::mem::transmute::<
                     _,
-                    &mut dyn FnMut(DynamicResult<&[T]>) -> Option<Box<dyn Any>>,
+                    &mut dyn FnMut(DynamicResult<&[T]>) -> Box<dyn Any>,
                 >(ptr);
-                func(x.many())
+                Ok(func(x.many()))
             } else {
-                None
+                Err(ErrorDesc::BorrowedIncompatibly)
             }
         } else {
             panic!("Wrong function type passed to `run_for`!");

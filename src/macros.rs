@@ -49,11 +49,11 @@ macro_rules! impl_unit {
                 'a,
                 T: $($constraint)*,
                 D: 'static + Any,
-                F: FnMut(DynamicResult<&[T]>) -> Option<D> + 'a,
+                F: FnMut(DynamicResult<&[T]>) -> D + 'a,
             >(
                 &self,
                 f: F,
-            ) -> Option<D> {
+            ) -> $crate::black_box::DynamicResult<D> {
                 self.$internal
                     .run_for(f)
             }
@@ -117,11 +117,11 @@ macro_rules! impl_unit {
                 'a,
                 T: $($constraint)*,
                 D: 'static + Any,
-                F: FnMut(DynamicResult<&[T]>) -> Option<D> + 'a,
+                F: FnMut(DynamicResult<&[T]>) -> D + 'a,
             >(
                 &self,
                 f: F,
-            ) -> Option<D> {
+            ) -> $crate::black_box::DynamicResult<D> {
                 self.$internal
                     .run_for(f)
             }

@@ -407,7 +407,7 @@ type RwLockBlackBox = BlackBox<
         Borrowed = MappedRwLockReadGuard<'a, dyn Any>,
         MutBorrowed = MappedRwLockWriteGuard<'a, dyn Any>,
         Owned = Box<dyn Any>,
-    > + Send),
+    > + Send + Sync),
 >;
 
 ///
@@ -458,16 +458,13 @@ impl Default for RwLockStorage {
     }
 }
 
-unsafe impl Send for RwLockStorage {}
-unsafe impl Sync for RwLockStorage {}
-
 type MutexBlackBox = BlackBox<
     (dyn for<'a> Unit<
         'a,
         Borrowed = MappedMutexGuard<'a, dyn Any>,
         MutBorrowed = MappedMutexGuard<'a, dyn Any>,
         Owned = Box<dyn Any>,
-    > + Send),
+    > + Send + Sync),
 >;
 
 ///
@@ -535,7 +532,3 @@ impl Default for MutexStorage {
         Self::new()
     }
 }
-
-unsafe impl Send for MutexStorage {}
-
-unsafe impl Sync for MutexStorage {}

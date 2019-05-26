@@ -23,7 +23,7 @@ macro_rules! impl_unit {
             #[doc = "Inserts a value whose type is constrained into the internal storage \
             unit. This will either append or fill a unit, going from `Nope` to \
             `One`, `One` to `Many` or appending `Many`.\nPlease refer to the proper \
-             documentation for this function at [`BlackBox::insert`]"]
+             documentation for this function at [`BlackBox::insert`]."]
             #[inline(always)]
             pub fn insert<T: $($constraint)*>(&self, data: T) -> Result<(), (T, $crate::ErrorDesc)> {
                 self.$internal
@@ -31,7 +31,8 @@ macro_rules! impl_unit {
             }
             #[doc = "Inserts many values of homogeneous types within a [`Vec`]. This will \
             append to a previously `Many` set of values, append to the end of a `One` value \
-            or replace a `Nope` value. "]
+            or replace a `Nope` value.\nPlease refer to the proper documentation for \
+            function at [`BlackBox::insert_many`]."]
             #[inline(always)]
             pub fn insert_many<T: $($constraint)*>(&self, data: Vec<T>) -> Result<(), (Vec<T>, $crate::black_box::ErrorDesc)> {
                 self.$internal

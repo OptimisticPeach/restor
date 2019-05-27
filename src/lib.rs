@@ -1,4 +1,5 @@
 #![deny(bare_trait_objects)]
+#![doc(html_logo_url = "https://optimisticpeach.github.io/Logo.svg")]
 
 //!
 //! A dynamically allocated storage system. Check it out on [Github][gh], or its capabilities on the

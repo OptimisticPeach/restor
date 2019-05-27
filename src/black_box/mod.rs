@@ -461,9 +461,8 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     ///
     /// Takes a function and runs it on the internal slice of data.
     ///
-    /// The function may return a piece of data, using an `Option<T>`,
-    /// but in the case that there is no data returned, you must call
-    /// the function using a unit return type.
+    /// The function may return a piece of data, which will be returned
+    /// in the [`DynamicResult`]`<D>` that is returned.
     ///
     /// The function takes a `Result<&[T], ErrorDesc>`, so it is responsible
     /// for handling the case that there isn't available data or it's
@@ -479,7 +478,7 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     /// use restor::{DynamicStorage, make_storage};
     /// let storage = make_storage!(DynamicStorage: usize);
     /// storage.insert_many(vec![1usize, 2, 4, 8, 16, 32, 64, 128]).unwrap();
-    /// storage.run_for::<usize, (), _>(|x| {
+    /// storage.run_for::<usize, _, _>(|x| {
     ///     assert_eq!(x.unwrap().iter().sum::<usize>(), 0b11111111);
     /// });
     /// # }
@@ -549,7 +548,11 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
 
     ///
     /// Runs a function over a mutable [`Vec`] of type `T`, if there is a storage for
-    /// `T` allocated.
+    /// `T` allocated. Similar to [`BlackBox::run_for`], this can optionally return an
+    /// item, as long as it is an owned item, or has the same lifetime of the closure.
+    ///
+    /// The argument passed to the function is of type `Result<&mut Vec<T>, ErrorDesc>`
+    /// so invalid attempts at running this function are handled within the closure.
     ///
     pub fn run_for_mut<
         'a,

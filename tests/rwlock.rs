@@ -220,7 +220,7 @@ mod concurrent {
             let y = xc.ind_mut::<usize>(1);
             y.map(|m| *m)
         });
-        t.join().unwrap();
+        t.join().unwrap().unwrap();
         let xc = <Arc<RwLockStorage> as Clone>::clone(&x);
         let t1 = spawn(move || {
             let y = xc.ind_mut::<usize>(0);

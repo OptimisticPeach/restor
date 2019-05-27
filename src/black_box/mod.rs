@@ -554,6 +554,35 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     /// The argument passed to the function is of type `Result<&mut Vec<T>, ErrorDesc>`
     /// so invalid attempts at running this function are handled within the closure.
     ///
+    /// In the case that the `Vec` is left in an invalid state, only one value or no
+    /// values, the internal storage is rearranged.
+    ///
+    /// # Examples
+    /// ```
+    /// # fn main() {
+    /// use restor::{DynamicStorage, make_storage};
+    /// let storage = make_storage!(DynamicStorage: usize);
+    /// storage.insert_many(vec![0usize, 1, 2, 3, 4]);
+    /// storage.run_for_mut::<usize, _, _>(|x| for i in x.unwrap() {*i *= 2; *i += 1;}).unwrap();
+    /// storage.run_for::<usize, _, _>(|x| assert_eq!(x.unwrap(), &[1, 3, 5, 7, 9])).unwrap();
+    /// # }
+    /// ```
+    ///
+    /// ```
+    /// # fn main() {
+    /// use restor::{DynamicStorage, make_storage};
+    /// let storage = make_storage!(DynamicStorage: usize);
+    /// storage.insert_many(vec![0usize, 1, 2, 3, 4]);
+    /// //Remove all but one element from the contents:
+    /// let v = storage.run_for_mut::<usize, _, _>(|x| {
+    ///     let x = x.unwrap();
+    ///     x.split_off(1)
+    /// }).unwrap();
+    /// assert_eq!(v, vec![1, 2, 3, 4]);
+    /// assert_eq!(*storage.get::<usize>().unwrap(), 0usize);
+    /// # }
+    /// ```
+    ///
     pub fn run_for_mut<
         'a,
         T: 'static,

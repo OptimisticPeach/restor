@@ -200,7 +200,7 @@ impl<'a, T: 'static + Send> Unit<'a> for MutexUnit<StorageUnit<T>> {
             } else {
                 Err(BorrowedIncompatibly)
             }
-        }else {
+        } else {
             panic!("Wrong function type passed to `run_for`!");
         }
     }

@@ -551,7 +551,12 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     /// Runs a function over a mutable [`Vec`] of type `T`, if there is a storage for
     /// `T` allocated.
     ///
-    pub fn run_for_mut<'a, T: 'static, D: 'static + Any, F: FnMut(DynamicResult<&mut Vec<T>>) -> D + 'a>(
+    pub fn run_for_mut<
+        'a,
+        T: 'static,
+        D: 'static + Any,
+        F: FnMut(DynamicResult<&mut Vec<T>>) -> D + 'a,
+    >(
         &self,
         mut f: F,
     ) -> DynamicResult<D> {

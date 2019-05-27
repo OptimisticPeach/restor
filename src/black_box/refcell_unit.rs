@@ -187,8 +187,10 @@ impl<'a, T: 'static> Unit<'a> for RefCellUnit<StorageUnit<T>> {
             }
         } else if t == TypeId::of::<dyn FnMut(DynamicResult<&mut Vec<T>>) -> Box<dyn Any>>() {
             if let Ok(mut x) = self.inner.try_borrow_mut() {
-                let func =
-                    std::mem::transmute::<_, &mut dyn Fn(DynamicResult<&mut Vec<T>>) -> Box<dyn Any>>(ptr);
+                let func = std::mem::transmute::<
+                    _,
+                    &mut dyn Fn(DynamicResult<&mut Vec<T>>) -> Box<dyn Any>,
+                >(ptr);
                 let res = func(x.many_mut());
                 x.rearrange_if_necessary();
                 Ok(res)

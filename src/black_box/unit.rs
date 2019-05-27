@@ -306,7 +306,7 @@ impl<T: Sized> StorageUnit<T> {
                     } else {
                         unreachable!()
                     }
-                },
+                }
                 _ => {}
             }
         }

@@ -188,7 +188,19 @@ impl<'a, T: 'static + Send> Unit<'a> for MutexUnit<StorageUnit<T>> {
             } else {
                 Err(BorrowedIncompatibly)
             }
-        } else {
+        } else if t == TypeId::of::<dyn FnMut(DynamicResult<&mut Vec<T>>) -> Box<dyn Any>>() {
+            if let Some(mut x) = self.inner.try_lock() {
+                let func = std::mem::transmute::<
+                    _,
+                    &mut dyn FnMut(DynamicResult<&mut Vec<T>>) -> Box<dyn Any>,
+                >(ptr);
+                let res = func(x.many_mut());
+                x.rearrange_if_necessary();
+                Ok(res)
+            } else {
+                Err(BorrowedIncompatibly)
+            }
+        }else {
             panic!("Wrong function type passed to `run_for`!");
         }
     }
@@ -389,6 +401,18 @@ impl<'a, T: 'static + Send> Unit<'a> for RwLockUnit<StorageUnit<T>> {
             } else {
                 Err(ErrorDesc::BorrowedIncompatibly)
             }
+        } else if t == TypeId::of::<(dyn FnMut(DynamicResult<&mut Vec<T>>) -> Box<dyn Any>)>() {
+            if let Some(mut x) = self.inner.try_write() {
+                let func = std::mem::transmute::<
+                    _,
+                    &mut dyn FnMut(DynamicResult<&mut Vec<T>>) -> Box<dyn Any>,
+                >(ptr);
+                let res = func(x.many_mut());
+                x.rearrange_if_necessary();
+                Ok(res)
+            } else {
+                Err(ErrorDesc::BorrowedIncompatibly)
+            }
         } else {
             panic!("Wrong function type passed to `run_for`!");
         }
@@ -407,7 +431,8 @@ type RwLockBlackBox = BlackBox<
         Borrowed = MappedRwLockReadGuard<'a, dyn Any>,
         MutBorrowed = MappedRwLockWriteGuard<'a, dyn Any>,
         Owned = Box<dyn Any>,
-    > + Send + Sync),
+    > + Send
+         + Sync),
 >;
 
 ///
@@ -464,7 +489,8 @@ type MutexBlackBox = BlackBox<
         Borrowed = MappedMutexGuard<'a, dyn Any>,
         MutBorrowed = MappedMutexGuard<'a, dyn Any>,
         Owned = Box<dyn Any>,
-    > + Send + Sync),
+    > + Send
+         + Sync),
 >;
 
 ///

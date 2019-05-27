@@ -521,7 +521,6 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     /// # }
     /// ```
     ///
-    #[inline]
     pub fn run_for<'a, T: 'static, D: 'static + Any, F: FnMut(DynamicResult<&[T]>) -> D + 'a>(
         &self,
         mut f: F,
@@ -538,6 +537,36 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
         };
 
         let t = TypeId::of::<(dyn FnMut(DynamicResult<&[T]>) -> Box<dyn Any>)>();
+
+        match self.unit_get::<T>() {
+            Ok(x) => unsafe {
+                let val = x.run_for((t, ptr));
+                val.map(|x| *x.downcast().unwrap())
+            },
+            Err(e) => Err(e),
+        }
+    }
+
+    ///
+    /// Runs a function over a mutable [`Vec`] of type `T`, if there is a storage for
+    /// `T` allocated.
+    ///
+    pub fn run_for_mut<'a, T: 'static, D: 'static + Any, F: FnMut(DynamicResult<&mut Vec<T>>) -> D + 'a>(
+        &self,
+        mut f: F,
+    ) -> DynamicResult<D> {
+        let mut new_fn = |x: DynamicResult<&mut Vec<T>>| {
+            let var: D = f(x);
+            Box::new(var) as Box<dyn Any>
+        };
+
+        let ptr = unsafe {
+            std::mem::transmute::<_, (*const (), *const ())>(
+                &mut new_fn as &mut dyn FnMut(DynamicResult<&mut Vec<T>>) -> Box<dyn Any>,
+            )
+        };
+
+        let t = TypeId::of::<(dyn FnMut(DynamicResult<&mut Vec<T>>) -> Box<dyn Any>)>();
 
         match self.unit_get::<T>() {
             Ok(x) => unsafe {

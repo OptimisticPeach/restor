@@ -293,6 +293,24 @@ impl<T: Sized> StorageUnit<T> {
             }
         }
     }
+    #[inline]
+    pub fn rearrange_if_necessary(&mut self) {
+        if let StorageUnit::Many(v) = self {
+            match v.as_slice() {
+                [] => *self = StorageUnit::Nope,
+                [_] => {
+                    let mut one_container = StorageUnit::Nope;
+                    swap(self, &mut one_container);
+                    if let StorageUnit::Many(mut v) = one_container {
+                        *self = StorageUnit::One(v.remove(0));
+                    } else {
+                        unreachable!()
+                    }
+                },
+                _ => {}
+            }
+        }
+    }
 }
 
 impl<T> Default for StorageUnit<T> {

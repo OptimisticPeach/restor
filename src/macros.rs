@@ -76,6 +76,16 @@ macro_rules! impl_unit {
                 self.$internal
                     .run_for(f)
             }
+
+            #[inline(always)]
+            pub fn run_for_mut<
+                'a,
+                T: $($constraint)*,
+                D: 'static + Any,
+                F: FnMut($crate::black_box::DynamicResult<&mut Vec<T>>) -> D + 'a>(&self, f: F) -> $crate::black_box::DynamicResult<D> {
+                self.$internal
+                    .run_for_mut(f)
+            }
         }
     };
     ($name:ident, $traitobject:ty, ($($constraint:tt)*), $storage_wrapper:ident, $mutlock:ident, $unmutlock:ident, $internal:ident, add_unmut) => {

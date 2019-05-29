@@ -31,7 +31,7 @@ macro_rules! impl_unit {
             }
             #[doc = "Inserts many values of homogeneous types within a [`Vec`]. This will \
             append to a previously `Many` set of values, append to the end of a `One` value \
-            or replace a `Nope` value.\nPlease refer to the proper documentation for \
+            or replace a `Nope` value.\nPlease refer to the proper documentation for this \
             function at [`BlackBox::insert_many`]."]
             #[inline(always)]
             pub fn insert_many<T: $($constraint)*>(&self, data: Vec<T>) -> Result<(), (Vec<T>, $crate::black_box::ErrorDesc)> {
@@ -39,6 +39,9 @@ macro_rules! impl_unit {
                     .insert_many(data)
             }
 
+            #[doc = "Acquires a mutable lock to a value of a given type. Returns an `Err` if \
+            an invalid value is found. Please refer to the proper documentation for this \
+            function at [`BlackBox::get_mut`]."]
             #[inline(always)]
             pub fn get_mut<T: $($constraint)*>(&self) -> $crate::black_box::DynamicResult<$mutlock<T>> {
                 self.$internal
@@ -82,7 +85,11 @@ macro_rules! impl_unit {
                 'a,
                 T: $($constraint)*,
                 D: 'static + Any,
-                F: FnMut($crate::black_box::DynamicResult<&mut Vec<T>>) -> D + 'a>(&self, f: F) -> $crate::black_box::DynamicResult<D> {
+                F: FnMut($crate::black_box::DynamicResult<&mut Vec<T>>) -> D + 'a
+            >(
+                &self,
+                f: F
+            ) -> $crate::black_box::DynamicResult<D> {
                 self.$internal
                     .run_for_mut(f)
             }

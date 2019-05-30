@@ -3,12 +3,12 @@ use std::any::Any;
 use std::cell::{Ref, RefMut};
 use std::ops::Deref;
 
-pub trait Get<'a, U: Unit<'a, Owned = Box<dyn Any + 'static>>> {
+pub trait Get<'a, U: Unit<'a, Owned = Box<dyn Any + 'static>> + ?Sized> {
     type Output: 'a;
     fn get(boxed: &'a BlackBox<U>) -> Self::Output;
 }
 
-impl<'a, T: Any + 'static, U: for<'b> Unit<'b, Owned = Box<dyn Any + 'static>>> Get<'a, U> for &T
+impl<'a, T: Any + 'static, U: for<'b> Unit<'b, Owned = Box<dyn Any + 'static>> + ?Sized> Get<'a, U> for &T
 where
     Borrowed<'a, U>: Map<(dyn Any), T, Func = fn(&dyn Any) -> &T>,
 {
@@ -18,7 +18,7 @@ where
     }
 }
 
-impl<'a, T: Any + 'static, U: for<'b> Unit<'b, Owned = Box<dyn Any + 'static>>> Get<'a, U>
+impl<'a, T: Any + 'static, U: for<'b> Unit<'b, Owned = Box<dyn Any + 'static>> + ?Sized> Get<'a, U>
     for &mut T
 where
     MutBorrowed<'a, U>: MapMut<(dyn Any), T, Func = fn(&mut dyn Any) -> &mut T>,
@@ -29,18 +29,29 @@ where
     }
 }
 
-trait Many<'a, U> {
+pub trait Many<'a, U: ?Sized> {
     type Output: 'a;
     fn get_many(boxed: &'a BlackBox<U>) -> Self::Output;
 }
 
-impl<'a, U, T> Many<'a, U> for (T,)
-where
-    T: Get<'a, U>,
-    U: Unit<'a, Owned = Box<dyn Any>>,
-{
-    type Output = (T::Output,);
-    fn get_many(boxed: &'a BlackBox<U>) -> Self::Output {
-        (T::get(boxed),)
+macro_rules! impl_tuple {
+    () => {};
+    ($first:ident $(, $t:ident)*) => {
+        impl<'a, U: ?Sized, $first, $($t),*> Many<'a, U> for ($first, $($t),*)
+        where
+            $(
+                $t: Get<'a, U>,
+            )*
+            $first: Get<'a, U>,
+            U: Unit<'a, Owned = Box<dyn Any>>,
+        {
+            type Output = ($first::Output, $($t::Output),*);
+            fn get_many(boxed: &'a BlackBox<U>) -> Self::Output {
+                ($first::get(boxed), $($t::get(boxed)),*)
+            }
+        }
+        impl_tuple!($($t),*);
     }
 }
+
+impl_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P);

@@ -616,9 +616,9 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
         }
     }
 
-//    pub fn many<T: 'static + Many>(&self) -> T::Output {
-//
-//    }
+    //    pub fn many<T: 'static + Many>(&self) -> T::Output {
+    //
+    //    }
 }
 
 impl

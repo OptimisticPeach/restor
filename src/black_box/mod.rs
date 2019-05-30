@@ -4,9 +4,11 @@ use std::cell::{Ref, RefMut};
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 
+mod many;
 mod unit;
 
 pub use crate::black_box::unit::{DynamicResult, ErrorDesc, StorageUnit, Unit, UnitError};
+use many::*;
 
 mod refcell_unit;
 
@@ -613,6 +615,10 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
             Err(e) => Err(e),
         }
     }
+
+//    pub fn many<T: 'static + Many>(&self) -> T::Output {
+//
+//    }
 }
 
 impl

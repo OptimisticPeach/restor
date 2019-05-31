@@ -1,4 +1,5 @@
-use restor::{ErrorDesc, RwLockStorage};
+#![allow(unused_must_use)]
+use restor::{ok, ErrorDesc, RwLockStorage};
 
 #[test]
 fn instantiate() {
@@ -74,10 +75,8 @@ fn ind() {
     x.insert(1usize).unwrap();
     let y = x.ind::<usize>(0);
     let indexed = x.ind::<usize>(0);
-    assert!(indexed.is_ok());
-    if let Ok(val) = indexed {
-        assert_eq!(*val, 0);
-    }
+    ok!(indexed, 0, *);
+    ok!(y, 0, *);
 }
 
 #[test]
@@ -88,29 +87,17 @@ fn ind_many() {
     x.insert(1usize).unwrap();
     {
         let y = x.ind::<usize>(0);
-        assert!(y.is_ok());
-        if let Ok(z) = y {
-            assert_eq!(*z, 0usize);
-        }
+        ok!(y, 0, *);
     }
     {
         let y = x.ind::<usize>(1);
-        assert!(y.is_ok());
-        if let Ok(z) = y {
-            assert_eq!(*z, 1usize);
-        }
+        ok!(y, 1, *);
     }
     {
         let y = x.ind::<usize>(0);
-        assert!(y.is_ok());
-        if let Ok(z) = y {
-            assert_eq!(*z, 0usize);
-        }
+        ok!(y, 0, *);
         let z = x.ind::<usize>(1);
-        assert!(z.is_ok());
-        if let Ok(nz) = z {
-            assert_eq!(*nz, 1usize);
-        }
+        ok!(z, 1, *);
     }
 }
 
@@ -150,8 +137,7 @@ fn ind_mut() {
     }
 }
 mod concurrent {
-    use parking_lot::MappedRwLockReadGuard;
-    use restor::{ErrorDesc, RwLockStorage};
+    use restor::RwLockStorage;
     use std::sync::Arc;
     use std::thread::spawn;
     use std::time::Duration;
@@ -171,7 +157,7 @@ mod concurrent {
                 assert_eq!(*z, 0usize);
             }
         });
-        t.join();
+        t.join().unwrap();
         let xc = x.clone();
         let t = spawn(move || {
             let y = (&*xc).ind::<usize>(1);
@@ -180,7 +166,7 @@ mod concurrent {
                 assert_eq!(*z, 1usize);
             }
         });
-        t.join();
+        t.join().unwrap();
         let xc = x.clone();
         let t1 = spawn(move || {
             let y = xc.ind::<usize>(0);
@@ -198,8 +184,8 @@ mod concurrent {
                 assert_eq!(*nz, 1usize);
             }
         });
-        t1.join();
-        t2.join();
+        t1.join().unwrap();
+        t2.join().unwrap();
     }
 
     #[test]
@@ -214,7 +200,7 @@ mod concurrent {
             let y = xc.ind_mut::<usize>(0);
             y.map(|m| *m)
         });
-        t.join().unwrap();
+        t.join().unwrap().unwrap();
         let xc = x.clone();
         let t = spawn(move || {
             let y = xc.ind_mut::<usize>(1);

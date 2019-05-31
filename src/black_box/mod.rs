@@ -4,11 +4,15 @@ use std::cell::{Ref, RefMut};
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 
+mod errors;
 mod many;
+mod storageunit;
 mod unit;
 
-pub use crate::black_box::unit::{DynamicResult, ErrorDesc, StorageUnit, Unit, UnitError};
+pub use crate::black_box::unit::Unit;
+pub use errors::{DynamicResult, ErrorDesc, UnitError};
 use many::*;
+pub use storageunit::StorageUnit;
 
 mod refcell_unit;
 

@@ -1,7 +1,5 @@
 use super::{BlackBox, Borrowed, Map, MapMut, MutBorrowed, Unit};
 use std::any::Any;
-use std::cell::{Ref, RefMut};
-use std::ops::Deref;
 
 pub trait Get<'a, U: Unit<'a, Owned = Box<dyn Any + 'static>> + ?Sized> {
     type Output: 'a;

@@ -2,7 +2,6 @@ use std::any::{Any, TypeId};
 use std::cell::{Ref, RefCell, RefMut};
 
 use super::*;
-use crate::black_box::unit::ErrorDesc::BorrowedIncompatibly;
 
 pub struct RefCellUnit<T> {
     pub(crate) inner: RefCell<T>,
@@ -163,14 +162,14 @@ impl<'a, T: 'static> Unit<'a> for RefCellUnit<StorageUnit<T>> {
             .try_borrow()
             .ok()
             .map(|x| Ref::map::<dyn Any, _>(x, |z| &*z))
-            .ok_or(BorrowedIncompatibly)
+            .ok_or(ErrorDesc::BorrowedIncompatibly)
     }
     fn storage_mut(&'a self) -> DynamicResult<RefMut<'a, dyn Any>> {
         self.inner
             .try_borrow_mut()
             .ok()
             .map(|x| RefMut::map::<dyn Any, _>(x, |z| &mut *z))
-            .ok_or(BorrowedIncompatibly)
+            .ok_or(ErrorDesc::BorrowedIncompatibly)
     }
 
     unsafe fn run_for(

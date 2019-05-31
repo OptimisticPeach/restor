@@ -1,4 +1,4 @@
-use restor::{err, ok, ErrorDesc, MutexStorage};
+use restor::{ok, ErrorDesc, MutexStorage};
 use std::sync::Arc;
 use std::thread::spawn;
 use std::time::Duration;

@@ -8,7 +8,8 @@ pub trait Get<'a, U: Unit<'a, Owned = Box<dyn Any + 'static>> + ?Sized> {
     fn get(boxed: &'a BlackBox<U>) -> Self::Output;
 }
 
-impl<'a, T: Any + 'static, U: for<'b> Unit<'b, Owned = Box<dyn Any + 'static>> + ?Sized> Get<'a, U> for &T
+impl<'a, T: Any + 'static, U: for<'b> Unit<'b, Owned = Box<dyn Any + 'static>> + ?Sized> Get<'a, U>
+    for &T
 where
     Borrowed<'a, U>: Map<(dyn Any), T, Func = fn(&dyn Any) -> &T>,
 {

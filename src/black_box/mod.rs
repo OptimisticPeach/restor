@@ -236,7 +236,7 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     /// Internal function. Returns a reference to the `Unit` for `T`
     ///
     #[inline]
-    fn unit_get<T: 'static>(&self) -> DynamicResult<&U> {
+    pub(crate) fn unit_get<T: 'static>(&self) -> DynamicResult<&U> {
         self.data
             .get(&TypeId::of::<T>())
             .map(|x| &**x)

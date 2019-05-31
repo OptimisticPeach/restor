@@ -11,7 +11,8 @@ pub trait Get<'a, U: Unit<'a, Owned = Box<dyn Any + 'static>> + ?Sized> {
 impl<'a, T: Any + 'static, U: for<'b> Unit<'b, Owned = Box<dyn Any + 'static>> + ?Sized> Get<'a, U>
     for &T
 where
-    Borrowed<'a, U>: Map<(dyn Any), T, Func = fn(&dyn Any) -> &T> + Map<(dyn Any), [T], Func = fn(&dyn Any) -> &[T]>,
+    Borrowed<'a, U>: Map<(dyn Any), T, Func = fn(&dyn Any) -> &T>
+        + Map<(dyn Any), [T], Func = fn(&dyn Any) -> &[T]>,
 {
     type Output = <Borrowed<'a, U> as Map<(dyn Any), T>>::Output;
     type MultipleOutput = <Borrowed<'a, U> as Map<(dyn Any), [T]>>::Output;
@@ -29,7 +30,8 @@ where
 impl<'a, T: Any + 'static, U: for<'b> Unit<'b, Owned = Box<dyn Any + 'static>> + ?Sized> Get<'a, U>
     for &mut T
 where
-    MutBorrowed<'a, U>: MapMut<(dyn Any), T, Func = fn(&mut dyn Any) -> &mut T> + MapMut<(dyn Any), [T], Func=fn(&mut dyn Any) -> &mut [T]>,
+    MutBorrowed<'a, U>: MapMut<(dyn Any), T, Func = fn(&mut dyn Any) -> &mut T>
+        + MapMut<(dyn Any), [T], Func = fn(&mut dyn Any) -> &mut [T]>,
 {
     type Output = <MutBorrowed<'a, U> as MapMut<(dyn Any), T>>::Output;
     type MultipleOutput = <MutBorrowed<'a, U> as MapMut<(dyn Any), [T]>>::Output;
@@ -39,7 +41,11 @@ where
     fn many(boxed: &'a BlackBox<U>) -> Self::MultipleOutput {
         let unit = boxed.unit_get::<T>().unwrap();
         MapMut::map(unit.storage_mut().unwrap(), |mut x: MutBorrowed<'a, U>| {
-            &mut x.downcast_mut::<StorageUnit<T>>().unwrap().many_mut().unwrap()[..]
+            &mut x
+                .downcast_mut::<StorageUnit<T>>()
+                .unwrap()
+                .many_mut()
+                .unwrap()[..]
         })
     }
 }

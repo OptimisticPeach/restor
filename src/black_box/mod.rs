@@ -272,7 +272,7 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     /// [`RefMut<'a, T>`]: https://doc.rust-lang.org/std/cell/struct.RefMut.html
     ///
     #[inline]
-    pub fn get_mut<'a, T: 'static>(
+    pub fn try_get_mut<'a, T: 'static>(
         &'a self,
     ) -> DynamicResult<<MutBorrowed<'a, U> as MapMut<dyn Any, T>>::Output>
     where
@@ -316,7 +316,7 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     /// ```
     ///
     #[inline]
-    pub fn ind_mut<'a, T: 'static>(
+    pub fn try_ind_mut<'a, T: 'static>(
         &'a self,
         ind: usize,
     ) -> DynamicResult<<MutBorrowed<'a, U> as MapMut<dyn Any, T>>::Output>
@@ -347,7 +347,7 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     /// ```
     ///
     #[inline]
-    pub fn extract<T: 'static>(&self) -> DynamicResult<T> {
+    pub fn try_extract<T: 'static>(&self) -> DynamicResult<T> {
         Ok(*self.unit_get::<T>()?.extract()?.downcast().unwrap())
     }
 
@@ -368,7 +368,7 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     /// ```
     ///
     #[inline]
-    pub fn extract_many<T: 'static>(&self) -> DynamicResult<Vec<T>> {
+    pub fn try_extract_many<T: 'static>(&self) -> DynamicResult<Vec<T>> {
         Ok(*self.unit_get::<T>()?.extract_many()?.downcast().unwrap())
     }
 
@@ -398,7 +398,7 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     /// ```
     ///
     #[inline]
-    pub fn get<'a, T: 'static>(
+    pub fn try_get<'a, T: 'static>(
         &'a self,
     ) -> DynamicResult<<Borrowed<'a, U> as Map<dyn Any, T>>::Output>
     where
@@ -443,7 +443,7 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     /// ```
     ///
     #[inline]
-    pub fn ind<'a, T: 'static>(
+    pub fn try_ind<'a, T: 'static>(
         &'a self,
         ind: usize,
     ) -> DynamicResult<<Borrowed<'a, U> as Map<dyn Any, T>>::Output>

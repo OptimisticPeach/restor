@@ -43,27 +43,27 @@ macro_rules! impl_unit {
             an invalid value is found. Please refer to the proper documentation for this \
             function at [`BlackBox::get_mut`]."]
             #[inline(always)]
-            pub fn get_mut<T: $($constraint)*>(&self) -> $crate::black_box::DynamicResult<$mutlock<T>> {
+            pub fn try_get_mut<T: $($constraint)*>(&self) -> $crate::black_box::DynamicResult<$mutlock<T>> {
                 self.$internal
-                    .get_mut()
+                    .try_get_mut()
             }
 
             #[inline(always)]
-            pub fn ind_mut<T: $($constraint)*>(&self, ind: usize) -> $crate::black_box::DynamicResult<$mutlock<T>> {
+            pub fn try_ind_mut<T: $($constraint)*>(&self, ind: usize) -> $crate::black_box::DynamicResult<$mutlock<T>> {
                 self.$internal
-                    .ind_mut(ind)
+                    .try_ind_mut(ind)
             }
 
             #[inline(always)]
             pub fn extract<T: $($constraint)*>(&self) -> $crate::black_box::DynamicResult<T> {
                 self.$internal
-                    .extract()
+                    .try_extract()
             }
 
             #[inline(always)]
             pub fn extract_many<T: $($constraint)*>(&self) -> $crate::black_box::DynamicResult<Vec<T>> {
                 self.$internal
-                    .extract_many()
+                    .try_extract_many()
             }
 
             #[inline(always)]
@@ -99,15 +99,15 @@ macro_rules! impl_unit {
         $crate::impl_unit!($name, $traitobject, ($($constraint)*), $storage_wrapper, $mutlock, $unmutlock, $internal);
         impl $name {
             #[inline(always)]
-            pub fn get<T: $($constraint)*>(&self) -> $crate::black_box::DynamicResult<$unmutlock<T>> {
+            pub fn try_get<T: $($constraint)*>(&self) -> $crate::black_box::DynamicResult<$unmutlock<T>> {
                 self.$internal
-                    .get()
+                    .try_get()
             }
 
             #[inline(always)]
-            pub fn ind<T: $($constraint)*>(&self, ind: usize) -> $crate::black_box::DynamicResult<$unmutlock<T>> {
+            pub fn try_ind<T: $($constraint)*>(&self, ind: usize) -> $crate::black_box::DynamicResult<$unmutlock<T>> {
                 self.$internal
-                    .ind(ind)
+                    .try_ind(ind)
             }
         }
     };

@@ -624,6 +624,12 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     pub fn extract_many_<'a, T: Extract<'a, U>>(&'a self) -> T::Owned {
         T::extract(self)
     }
+    pub fn extract_ind_<'a, T: ExtractInd<'a, U>>(&'a self, indices: T::Index) -> T::Owned {
+        T::extract_ind(self, indices)
+    }
+    pub fn extract_slice_<'a, T: ExtractMultiple<'a, U>>(&'a self) -> T::MultipleOwned {
+        T::extract_many(self)
+    }
 }
 
 impl

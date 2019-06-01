@@ -44,9 +44,9 @@ fn borrow_twice_im() {
     let mut x = DynamicStorage::new();
     x.allocate_for::<usize>();
     x.insert(0usize).unwrap();
-    let y = x.get::<usize>();
+    let y = x.try_get::<usize>();
     assert!(y.is_ok());
-    let z = x.get::<usize>();
+    let z = x.try_get::<usize>();
     assert!(z.is_ok());
     drop(y);
     drop(z);
@@ -57,9 +57,9 @@ fn borrow_twice_mut() {
     let mut x = DynamicStorage::new();
     x.allocate_for::<usize>();
     x.insert(0usize).unwrap();
-    let y = x.get_mut::<usize>();
+    let y = x.try_get_mut::<usize>();
     assert!(y.is_ok());
-    let z = x.get_mut::<usize>();
+    let z = x.try_get_mut::<usize>();
     if let Err(ErrorDesc::BorrowedIncompatibly) = z {
     } else {
         panic!();
@@ -72,8 +72,8 @@ fn ind() {
     x.allocate_for::<usize>();
     x.insert(0usize).unwrap();
     x.insert(1usize).unwrap();
-    let y = x.ind::<usize>(0);
-    let indexed = x.ind::<usize>(0);
+    let y = x.try_ind::<usize>(0);
+    let indexed = x.try_ind::<usize>(0);
     assert!(indexed.is_ok());
     if let Ok(val) = indexed {
         assert_eq!(*val, 0);
@@ -87,26 +87,26 @@ fn ind_many() {
     x.insert(0usize).unwrap();
     x.insert(1usize).unwrap();
     {
-        let y = x.ind::<usize>(0);
+        let y = x.try_ind::<usize>(0);
         assert!(y.is_ok());
         if let Ok(z) = y {
             assert_eq!(*z, 0usize);
         }
     }
     {
-        let y = x.ind::<usize>(1);
+        let y = x.try_ind::<usize>(1);
         assert!(y.is_ok());
         if let Ok(z) = y {
             assert_eq!(*z, 1usize);
         }
     }
     {
-        let y = x.ind::<usize>(0);
+        let y = x.try_ind::<usize>(0);
         assert!(y.is_ok());
         if let Ok(z) = y {
             assert_eq!(*z, 0usize);
         }
-        let z = x.ind::<usize>(1);
+        let z = x.try_ind::<usize>(1);
         assert!(z.is_ok());
         if let Ok(nz) = z {
             assert_eq!(*nz, 1usize);
@@ -121,7 +121,7 @@ fn ind_mut() {
     x.insert(0usize).unwrap();
     x.insert(1usize).unwrap();
     {
-        let y = x.ind_mut::<usize>(0);
+        let y = x.try_ind_mut::<usize>(0);
         assert!(y.is_ok());
         if let Ok(mut z) = y {
             assert_eq!(*z, 0usize);
@@ -129,19 +129,19 @@ fn ind_mut() {
         }
     }
     {
-        let y = x.ind_mut::<usize>(1);
+        let y = x.try_ind_mut::<usize>(1);
         assert!(y.is_ok());
         if let Ok(z) = y {
             assert_eq!(*z, 1usize);
         }
     }
     {
-        let y = x.ind_mut::<usize>(0);
+        let y = x.try_ind_mut::<usize>(0);
         assert!(y.is_ok());
         if let Ok(z) = &y {
             assert_eq!(**z, 10usize);
         }
-        let z = x.ind_mut::<usize>(1);
+        let z = x.try_ind_mut::<usize>(1);
         assert!(z.is_err());
         if let Err(ErrorDesc::BorrowedIncompatibly) = z {
         } else {

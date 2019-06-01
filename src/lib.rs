@@ -117,7 +117,7 @@ macro_rules! make_storage {
     }
 }
 
-pub use black_box::{BlackBox, ErrorDesc, Unit, UnitError};
+pub use black_box::{BlackBox, ErrorDesc, Get, IndMultiple, Multiple, SliceMany, Unit, UnitError};
 pub use concurrent_black_box::{MutexStorage, RwLockStorage};
 use std::any::Any;
 use std::cell::{Ref, RefMut};

@@ -11,7 +11,7 @@ mod unit;
 
 pub use crate::black_box::unit::Unit;
 pub use errors::{DynamicResult, ErrorDesc, UnitError};
-use many::*;
+pub use many::{Get, IndMultiple, Multiple, SliceMany};
 pub use storageunit::StorageUnit;
 
 mod refcell_unit;
@@ -25,30 +25,22 @@ pub use crate::black_box::refcell_unit::*;
 ///
 pub trait Map<I: ?Sized, O: ?Sized>: Deref<Target = I> + Sized {
     type Output: Deref<Target = O>;
-    type Func: Sized + 'static;
-    fn map(self, f: Self::Func) -> Self::Output;
+    type Func: ?Sized + 'static;
+    fn map(self, f: &Self::Func) -> Self::Output;
 }
 
 impl<'a, I: 'static + ?Sized, O: 'static + ?Sized> Map<I, O> for Ref<'a, I> {
     type Output = Ref<'a, O>;
-    type Func = for<'b> fn(&'b I) -> &'b O;
-    fn map(self, f: Self::Func) -> Ref<'a, O> {
+    type Func = dyn for<'b> Fn(&'b I) -> &'b O;
+    fn map(self, f: &Self::Func) -> Ref<'a, O> {
         Ref::map(self, f)
-    }
-}
-
-impl<'a, I: 'static + ?Sized, O: 'static + ?Sized> Map<I, O> for MappedMutexGuard<'a, I> {
-    type Output = MappedMutexGuard<'a, O>;
-    type Func = for<'b> fn(&'b mut I) -> &'b mut O;
-    fn map(self, f: Self::Func) -> MappedMutexGuard<'a, O> {
-        MappedMutexGuard::map(self, f)
     }
 }
 
 impl<'a, I: 'static + ?Sized, O: 'static + ?Sized> Map<I, O> for MappedRwLockReadGuard<'a, I> {
     type Output = MappedRwLockReadGuard<'a, O>;
-    type Func = for<'b> fn(&'b I) -> &'b O;
-    fn map(self, f: Self::Func) -> MappedRwLockReadGuard<'a, O> {
+    type Func = dyn for<'b> Fn(&'b I) -> &'b O;
+    fn map(self, f: &Self::Func) -> MappedRwLockReadGuard<'a, O> {
         MappedRwLockReadGuard::map(self, f)
     }
 }
@@ -59,30 +51,30 @@ impl<'a, I: 'static + ?Sized, O: 'static + ?Sized> Map<I, O> for MappedRwLockRea
 ///
 pub trait MapMut<I: ?Sized, O: ?Sized>: Deref<Target = I> + Sized + DerefMut {
     type Output: Deref<Target = O> + DerefMut;
-    type Func: Sized + 'static;
-    fn map(self, f: Self::Func) -> Self::Output;
+    type Func: ?Sized + 'static;
+    fn map(self, f: &Self::Func) -> Self::Output;
 }
 
 impl<'a, I: 'static + ?Sized, O: 'static + ?Sized> MapMut<I, O> for RefMut<'a, I> {
     type Output = RefMut<'a, O>;
-    type Func = for<'b> fn(&'b mut I) -> &'b mut O;
-    fn map(self, f: Self::Func) -> RefMut<'a, O> {
+    type Func = dyn for<'b> Fn(&'b mut I) -> &'b mut O;
+    fn map(self, f: &Self::Func) -> RefMut<'a, O> {
         RefMut::map(self, f)
     }
 }
 
 impl<'a, I: 'static + ?Sized, O: 'static + ?Sized> MapMut<I, O> for MappedRwLockWriteGuard<'a, I> {
     type Output = MappedRwLockWriteGuard<'a, O>;
-    type Func = for<'b> fn(&'b mut I) -> &'b mut O;
-    fn map(self, f: Self::Func) -> MappedRwLockWriteGuard<'a, O> {
+    type Func = dyn for<'b> Fn(&'b mut I) -> &'b mut O;
+    fn map(self, f: &Self::Func) -> MappedRwLockWriteGuard<'a, O> {
         MappedRwLockWriteGuard::map(self, f)
     }
 }
 
 impl<'a, I: 'static + ?Sized, O: 'static + ?Sized> MapMut<I, O> for MappedMutexGuard<'a, I> {
     type Output = MappedMutexGuard<'a, O>;
-    type Func = for<'b> fn(&'b mut I) -> &'b mut O;
-    fn map(self, f: Self::Func) -> MappedMutexGuard<'a, O> {
+    type Func = dyn for<'b> Fn(&'b mut I) -> &'b mut O;
+    fn map(self, f: &Self::Func) -> MappedMutexGuard<'a, O> {
         MappedMutexGuard::map(self, f)
     }
 }
@@ -284,12 +276,12 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
         &'a self,
     ) -> DynamicResult<<MutBorrowed<'a, U> as MapMut<dyn Any, T>>::Output>
     where
-        MutBorrowed<'a, U>: MapMut<dyn Any, T, Func = fn(&mut dyn Any) -> &mut T>,
+        MutBorrowed<'a, U>: MapMut<dyn Any, T, Func = dyn Fn(&mut dyn Any) -> &mut T>,
     {
         Ok(self
             .unit_get::<T>()?
             .one_mut()?
-            .map(|x| x.downcast_mut().unwrap()))
+            .map(&|x| x.downcast_mut().unwrap()))
     }
 
     ///
@@ -329,12 +321,12 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
         ind: usize,
     ) -> DynamicResult<<MutBorrowed<'a, U> as MapMut<dyn Any, T>>::Output>
     where
-        MutBorrowed<'a, U>: MapMut<dyn Any, T, Func = fn(&mut dyn Any) -> &mut T>,
+        MutBorrowed<'a, U>: MapMut<dyn Any, T, Func = dyn Fn(&mut dyn Any) -> &mut T>,
     {
         Ok(self
             .unit_get::<T>()?
             .ind_mut(ind)?
-            .map(|x| x.downcast_mut().unwrap()))
+            .map(&|x| x.downcast_mut().unwrap()))
     }
 
     ///
@@ -410,12 +402,12 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
         &'a self,
     ) -> DynamicResult<<Borrowed<'a, U> as Map<dyn Any, T>>::Output>
     where
-        Borrowed<'a, U>: Map<dyn Any, T, Func = for<'b> fn(&'b dyn Any) -> &'b T>,
+        Borrowed<'a, U>: Map<dyn Any, T, Func = dyn for<'b> Fn(&'b dyn Any) -> &'b T>,
     {
         Ok(self
             .unit_get::<T>()?
             .one()?
-            .map(|x| x.downcast_ref().unwrap()))
+            .map(&|x| x.downcast_ref().unwrap()))
     }
 
     ///
@@ -456,12 +448,12 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
         ind: usize,
     ) -> DynamicResult<<Borrowed<'a, U> as Map<dyn Any, T>>::Output>
     where
-        Borrowed<'a, U>: Map<dyn Any, T, Func = for<'b> fn(&'b dyn Any) -> &'b T>,
+        Borrowed<'a, U>: Map<dyn Any, T, Func = dyn for<'b> Fn(&'b dyn Any) -> &'b T>,
     {
         Ok(self
             .unit_get::<T>()?
             .ind(ind)?
-            .map(|x| x.downcast_ref().unwrap()))
+            .map(&|x| x.downcast_ref().unwrap()))
     }
 
     ///
@@ -623,8 +615,11 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     pub fn many<'a, T: Multiple<'a, U>>(&'a self) -> T::Output {
         T::get_many(self)
     }
-    pub fn slice_many<'a, T: SliceMany<'a, U>>(&'a self) -> T::Output {
+    pub fn slice_many<'a, T: SliceMany<'a, U>>(&'a self) -> T::SliceOutput {
         T::slice_many(self)
+    }
+    pub fn ind_many<'a, T: IndMultiple<'a, U>>(&'a self, indices: T::Index) -> T::Output {
+        T::ind_many(self, indices)
     }
 }
 

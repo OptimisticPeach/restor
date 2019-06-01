@@ -11,7 +11,7 @@ mod unit;
 
 pub use crate::black_box::unit::Unit;
 pub use errors::{DynamicResult, ErrorDesc, UnitError};
-pub use many::{Get, IndMultiple, Multiple, SliceMany};
+pub use many::{Extract, ExtractInd, ExtractMultiple, Get, IndMultiple, Multiple, SliceMany};
 pub use storageunit::StorageUnit;
 
 mod refcell_unit;
@@ -620,6 +620,9 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     }
     pub fn ind_many<'a, T: IndMultiple<'a, U>>(&'a self, indices: T::Index) -> T::Output {
         T::ind_many(self, indices)
+    }
+    pub fn extract_many_<'a, T: Extract<'a, U>>(&'a self) -> T::Owned {
+        T::extract(self)
     }
 }
 

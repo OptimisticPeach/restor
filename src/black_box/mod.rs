@@ -620,8 +620,11 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
         }
     }
 
-    pub fn many<'a, T: 'static + Many<'a, U>>(&'a self) -> T::Output {
+    pub fn many<'a, T: Multiple<'a, U>>(&'a self) -> T::Output {
         T::get_many(self)
+    }
+    pub fn slice_many<'a, T: SliceMany<'a, U>>(&'a self) -> T::Output {
+        T::slice_many(self)
     }
 }
 

@@ -21,7 +21,7 @@ where
     }
     fn many(boxed: &'a BlackBox<U>) -> Self::MultipleOutput {
         let unit = boxed.unit_get::<T>().unwrap();
-        Map::map(unit.storage().unwrap(), |x: Borrowed<'a, U>| {
+        Map::<dyn Any, [T]>::map(unit.storage().unwrap(), |x: &dyn Any| {
             &x.downcast_ref::<StorageUnit<T>>().unwrap().many().unwrap()[..]
         })
     }
@@ -40,7 +40,7 @@ where
     }
     fn many(boxed: &'a BlackBox<U>) -> Self::MultipleOutput {
         let unit = boxed.unit_get::<T>().unwrap();
-        MapMut::map(unit.storage_mut().unwrap(), |mut x: MutBorrowed<'a, U>| {
+        MapMut::<dyn Any, [T]>::map(unit.storage_mut().unwrap(), |x: &mut dyn Any| {
             &mut x
                 .downcast_mut::<StorageUnit<T>>()
                 .unwrap()
@@ -50,15 +50,20 @@ where
     }
 }
 
-pub trait Many<'a, U: ?Sized> {
+pub trait Multiple<'a, U: ?Sized> {
     type Output: 'a;
     fn get_many(boxed: &'a BlackBox<U>) -> Self::Output;
+}
+
+pub trait SliceMany<'a, U: ?Sized> {
+    type Output: 'a;
+    fn slice_many(boxed: &'a BlackBox<U>) -> Self::Output;
 }
 
 macro_rules! impl_tuple {
     () => {};
     ($first:ident $(, $t:ident)*) => {
-        impl<'a, U: ?Sized, $first, $($t),*> Many<'a, U> for ($first, $($t),*)
+        impl<'a, U: ?Sized, $first, $($t),*> Multiple<'a, U> for ($first, $($t),*)
         where
             $(
                 $t: Get<'a, U>,
@@ -69,6 +74,20 @@ macro_rules! impl_tuple {
             type Output = ($first::Output, $($t::Output),*);
             fn get_many(boxed: &'a BlackBox<U>) -> Self::Output {
                 ($first::get(boxed), $($t::get(boxed)),*)
+            }
+        }
+
+        impl<'a, U: ?Sized, $first, $($t),*> SliceMany<'a, U> for ($first, $($t),*)
+        where
+            $(
+                $t: Get<'a, U>,
+            )*
+            $first: Get<'a, U>,
+            U: Unit<'a, Owned = Box<dyn Any>>,
+        {
+            type Output = ($first::MultipleOutput, $($t::MultipleOutput),*);
+            fn slice_many(boxed: &'a BlackBox<U>) -> Self::Output {
+                ($first::many(boxed), $($t::many(boxed)),*)
             }
         }
         impl_tuple!($($t),*);

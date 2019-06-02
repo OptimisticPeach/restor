@@ -1,4 +1,4 @@
-# restor [![Crates.io](https://img.shields.io/badge/crates.io-docs.rs-brightgreen.svg?link=https://crates.io/crates/restor&link=https://docs.rs/restor/)]
+# restor [![Crates.io](https://img.shields.io/badge/crates.io-docs.rs-brightgreen.svg?link=https://crates.io/crates/restor&link=https://docs.rs/restor/)](docs.rs/restor)
 A dyamic resource storage written in rust. It supports storage of multiple types and multiple entries and dynamic borrow checking with the help of [`RefCell`](https://doc.rust-lang.org/std/cell/struct.RefCell.html)s, [`Mutex`](https://docs.rs/parking_lot/0.7.1/parking_lot/type.Mutex.html)s and [`RwLock`](https://docs.rs/parking_lot/0.7.1/parking_lot/type.RwLock.html)s from [`parking_lot`](https://docs.rs/parking_lot/0.7.1/parking_lot/index.html).
 
 ## Example:

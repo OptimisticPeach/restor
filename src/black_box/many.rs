@@ -1,4 +1,7 @@
-use super::{BlackBox, Borrowed, Map, MapMut, MutBorrowed, StorageUnit, Unit, DynamicResult, ErrorDesc, UnitError};
+use super::{
+    BlackBox, Borrowed, DynamicResult, ErrorDesc, Map, MapMut, MutBorrowed, StorageUnit, Unit,
+    UnitError,
+};
 use std::any::Any;
 
 pub trait Get<'a, U: Unit<'a, Owned = Box<dyn Any + 'static>> + ?Sized> {
@@ -17,44 +20,51 @@ pub trait Get<'a, U: Unit<'a, Owned = Box<dyn Any + 'static>> + ?Sized> {
 impl<'a, T: Any + 'static, U: for<'b> Unit<'b, Owned = Box<dyn Any + 'static>> + ?Sized> Get<'a, U>
     for &T
 where
-    Borrowed<'a, U>:
-          Map<(dyn Any), StorageUnit<T>, Func = dyn Fn(&dyn Any) -> &StorageUnit<T>>,
+    Borrowed<'a, U>: Map<(dyn Any), StorageUnit<T>, Func = dyn Fn(&dyn Any) -> &StorageUnit<T>>,
     <Borrowed<'a, U> as Map<dyn Any, StorageUnit<T>>>::Output:
-          Map<StorageUnit<T>, T, Func = dyn Fn(&StorageUnit<T>) -> &T>
-        + Map<StorageUnit<T>, [T], Func = dyn Fn(&StorageUnit<T>) -> &[T]>,
+        Map<StorageUnit<T>, T, Func = dyn Fn(&StorageUnit<T>) -> &T>
+            + Map<StorageUnit<T>, [T], Func = dyn Fn(&StorageUnit<T>) -> &[T]>,
 {
-    type Output = <<Borrowed<'a, U> as Map<dyn Any, StorageUnit<T>>>::Output as Map<StorageUnit<T>, T>>::Output;
-    type MultipleOutput = <<Borrowed<'a, U> as Map<dyn Any, StorageUnit<T>>>::Output as Map<StorageUnit<T>, [T]>>::Output;
+    type Output = <<Borrowed<'a, U> as Map<dyn Any, StorageUnit<T>>>::Output as Map<
+        StorageUnit<T>,
+        T,
+    >>::Output;
+    type MultipleOutput = <<Borrowed<'a, U> as Map<dyn Any, StorageUnit<T>>>::Output as Map<
+        StorageUnit<T>,
+        [T],
+    >>::Output;
     type Owned = Box<T>;
     type MultipleOwned = Vec<T>;
     #[inline]
     fn get(boxed: &'a BlackBox<U>) -> DynamicResult<Self::Output> {
         let unit = boxed.unit_get::<T>()?;
-        let f: &dyn Fn(&dyn Any) -> &StorageUnit<T> = &|x| x.downcast_ref::<StorageUnit<T>>().unwrap();
+        let f: &dyn Fn(&dyn Any) -> &StorageUnit<T> =
+            &|x| x.downcast_ref::<StorageUnit<T>>().unwrap();
         let unit = Map::<dyn Any, StorageUnit<T>>::map(unit.storage()?, f);
         unit.one()?;
-        let f: &dyn for<'r> Fn(&'r StorageUnit<T>) -> &'r T =
-            &|x| x.one().unwrap();
+        let f: &dyn for<'r> Fn(&'r StorageUnit<T>) -> &'r T = &|x| x.one().unwrap();
         Ok(Map::<StorageUnit<T>, T>::map(unit, f))
     }
     #[inline]
     fn many(boxed: &'a BlackBox<U>) -> DynamicResult<Self::MultipleOutput> {
         let unit = boxed.unit_get::<T>()?;
-        let f: &dyn Fn(&dyn Any) -> &StorageUnit<T> = &|x| x.downcast_ref::<StorageUnit<T>>().unwrap();
+        let f: &dyn Fn(&dyn Any) -> &StorageUnit<T> =
+            &|x| x.downcast_ref::<StorageUnit<T>>().unwrap();
         let unit = Map::<dyn Any, StorageUnit<T>>::map(unit.storage()?, f);
         unit.many()?;
-        let f: &dyn Fn(&StorageUnit<T>) -> &[T] =
-            &|x| &x.many().unwrap()[..];
+        let f: &dyn Fn(&StorageUnit<T>) -> &[T] = &|x| &x.many().unwrap()[..];
         Ok(Map::<StorageUnit<T>, [T]>::map(unit, f))
     }
     #[inline]
     fn ind(boxed: &'a BlackBox<U>, ind: usize) -> DynamicResult<Self::Output> {
         let unit = boxed.unit_get::<T>()?;
-        let f: &dyn Fn(&dyn Any) -> &StorageUnit<T> = &|x| x.downcast_ref::<StorageUnit<T>>().unwrap();
+        let f: &dyn Fn(&dyn Any) -> &StorageUnit<T> =
+            &|x| x.downcast_ref::<StorageUnit<T>>().unwrap();
         let unit = Map::<dyn Any, StorageUnit<T>>::map(unit.storage()?, f);
-        unit.many()?.get(ind).ok_or(ErrorDesc::Unit(UnitError::OutOfBounds))?;
-        let f: &dyn Fn(&StorageUnit<T>) -> &T =
-            &move |x| &x.many().unwrap()[ind];
+        unit.many()?
+            .get(ind)
+            .ok_or(ErrorDesc::Unit(UnitError::OutOfBounds))?;
+        let f: &dyn Fn(&StorageUnit<T>) -> &T = &move |x| &x.many().unwrap()[ind];
         Ok(Map::<StorageUnit<T>, T>::map(unit, f))
     }
     #[inline]
@@ -77,43 +87,53 @@ where
 impl<'a, T: Any + 'static, U: for<'b> Unit<'b, Owned = Box<dyn Any + 'static>> + ?Sized> Get<'a, U>
     for &mut T
 where
-    MutBorrowed<'a, U>: MapMut<(dyn Any), StorageUnit<T>, Func = dyn Fn(&mut dyn Any) -> &mut StorageUnit<T>>,
+    MutBorrowed<'a, U>:
+        MapMut<(dyn Any), StorageUnit<T>, Func = dyn Fn(&mut dyn Any) -> &mut StorageUnit<T>>,
     <MutBorrowed<'a, U> as MapMut<(dyn Any), StorageUnit<T>>>::Output:
-          MapMut<StorageUnit<T>, [T], Func = dyn Fn(&mut StorageUnit<T>) -> &mut [T]>
-        + MapMut<StorageUnit<T>, T, Func = dyn Fn(&mut StorageUnit<T>) -> &mut T>
+        MapMut<StorageUnit<T>, [T], Func = dyn Fn(&mut StorageUnit<T>) -> &mut [T]>
+            + MapMut<StorageUnit<T>, T, Func = dyn Fn(&mut StorageUnit<T>) -> &mut T>,
 {
-    type Output = <<MutBorrowed<'a, U> as MapMut<(dyn Any), StorageUnit<T>>>::Output as MapMut<StorageUnit<T>, T>>::Output;
-    type MultipleOutput = <<MutBorrowed<'a, U> as MapMut<(dyn Any), StorageUnit<T>>>::Output as MapMut<StorageUnit<T>, [T]>>::Output;
+    type Output = <<MutBorrowed<'a, U> as MapMut<(dyn Any), StorageUnit<T>>>::Output as MapMut<
+        StorageUnit<T>,
+        T,
+    >>::Output;
+    type MultipleOutput =
+        <<MutBorrowed<'a, U> as MapMut<(dyn Any), StorageUnit<T>>>::Output as MapMut<
+            StorageUnit<T>,
+            [T],
+        >>::Output;
     type Owned = Box<T>;
     type MultipleOwned = Vec<T>;
     #[inline]
     fn get(boxed: &'a BlackBox<U>) -> DynamicResult<Self::Output> {
         let unit = boxed.unit_get::<T>()?;
-        let f: &dyn Fn(&mut dyn Any) -> &mut StorageUnit<T> = &|x| x.downcast_mut::<StorageUnit<T>>().unwrap();
+        let f: &dyn Fn(&mut dyn Any) -> &mut StorageUnit<T> =
+            &|x| x.downcast_mut::<StorageUnit<T>>().unwrap();
         let mut unit = MapMut::<dyn Any, StorageUnit<T>>::map(unit.storage_mut()?, f);
         unit.one_mut()?;
-        let f: &dyn Fn(&mut StorageUnit<T>) -> &mut T =
-            &|x| x.one_mut().unwrap();
+        let f: &dyn Fn(&mut StorageUnit<T>) -> &mut T = &|x| x.one_mut().unwrap();
         Ok(MapMut::<StorageUnit<T>, T>::map(unit, f))
     }
     #[inline]
     fn many(boxed: &'a BlackBox<U>) -> DynamicResult<Self::MultipleOutput> {
         let unit = boxed.unit_get::<T>()?;
-        let f: &dyn Fn(&mut dyn Any) -> &mut StorageUnit<T> = &|x| x.downcast_mut::<StorageUnit<T>>().unwrap();
+        let f: &dyn Fn(&mut dyn Any) -> &mut StorageUnit<T> =
+            &|x| x.downcast_mut::<StorageUnit<T>>().unwrap();
         let mut unit = MapMut::<dyn Any, StorageUnit<T>>::map(unit.storage_mut()?, f);
         unit.many_mut()?;
-        let f: &dyn Fn(&mut StorageUnit<T>) -> &mut [T] =
-            &|x| &mut x.many_mut().unwrap()[..];
+        let f: &dyn Fn(&mut StorageUnit<T>) -> &mut [T] = &|x| &mut x.many_mut().unwrap()[..];
         Ok(MapMut::<StorageUnit<T>, [T]>::map(unit, f))
     }
     #[inline]
     fn ind(boxed: &'a BlackBox<U>, ind: usize) -> DynamicResult<Self::Output> {
         let unit = boxed.unit_get::<T>()?;
-        let f: &dyn Fn(&mut dyn Any) -> &mut StorageUnit<T> = &|x| x.downcast_mut ::<StorageUnit<T>>().unwrap();
-        let mut unit = MapMut::<dyn Any, StorageUnit<T>>::map(unit.storage_mut ()?, f);
-        unit.many_mut ()?.get_mut (ind).ok_or(ErrorDesc::Unit(UnitError::OutOfBounds))?;
-        let f: &dyn Fn(&mut StorageUnit<T>) -> &mut T =
-            &move |x| &mut x.many_mut().unwrap()[ind];
+        let f: &dyn Fn(&mut dyn Any) -> &mut StorageUnit<T> =
+            &|x| x.downcast_mut::<StorageUnit<T>>().unwrap();
+        let mut unit = MapMut::<dyn Any, StorageUnit<T>>::map(unit.storage_mut()?, f);
+        unit.many_mut()?
+            .get_mut(ind)
+            .ok_or(ErrorDesc::Unit(UnitError::OutOfBounds))?;
+        let f: &dyn Fn(&mut StorageUnit<T>) -> &mut T = &move |x| &mut x.many_mut().unwrap()[ind];
         Ok(MapMut::<StorageUnit<T>, T>::map(unit, f))
     }
     #[inline]
@@ -145,7 +165,10 @@ pub trait SliceMany<'a, U: ?Sized>: Multiple<'a, U> {
 
 pub trait IndMultiple<'a, U: ?Sized>: Multiple<'a, U> {
     type Index;
-    fn ind_many(boxed: &'a BlackBox<U>, index: Self::Index) -> DynamicResult<<Self as Multiple<'a, U>>::Output>;
+    fn ind_many(
+        boxed: &'a BlackBox<U>,
+        index: Self::Index,
+    ) -> DynamicResult<<Self as Multiple<'a, U>>::Output>;
 }
 
 pub trait Extract<'a, U: ?Sized>: Multiple<'a, U> {

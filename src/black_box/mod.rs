@@ -612,22 +612,22 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
         }
     }
 
-    pub fn many<'a, T: Multiple<'a, U>>(&'a self) -> T::Output {
+    pub fn many<'a, T: Multiple<'a, U>>(&'a self) -> DynamicResult<T::Output> {
         T::get_many(self)
     }
-    pub fn slice_many<'a, T: SliceMany<'a, U>>(&'a self) -> T::SliceOutput {
+    pub fn slice_many<'a, T: SliceMany<'a, U>>(&'a self) -> DynamicResult<T::SliceOutput> {
         T::slice_many(self)
     }
-    pub fn ind_many<'a, T: IndMultiple<'a, U>>(&'a self, indices: T::Index) -> T::Output {
+    pub fn ind_many<'a, T: IndMultiple<'a, U>>(&'a self, indices: T::Index) -> DynamicResult<T::Output> {
         T::ind_many(self, indices)
     }
-    pub fn extract_many_<'a, T: Extract<'a, U>>(&'a self) -> T::Owned {
+    pub fn extract_many_<'a, T: Extract<'a, U>>(&'a self) -> DynamicResult<T::Owned> {
         T::extract(self)
     }
-    pub fn extract_ind_<'a, T: ExtractInd<'a, U>>(&'a self, indices: T::Index) -> T::Owned {
+    pub fn extract_ind_<'a, T: ExtractInd<'a, U>>(&'a self, indices: T::Index) -> DynamicResult<T::Owned> {
         T::extract_ind(self, indices)
     }
-    pub fn extract_slice_<'a, T: ExtractMultiple<'a, U>>(&'a self) -> T::MultipleOwned {
+    pub fn extract_slice_<'a, T: ExtractMultiple<'a, U>>(&'a self) -> DynamicResult<T::MultipleOwned> {
         T::extract_many(self)
     }
 }

@@ -39,33 +39,6 @@ macro_rules! impl_unit {
                     .insert_many(data)
             }
 
-            #[doc = "Acquires a mutable lock to a value of a given type. Returns an `Err` if \
-            an invalid value is found. Please refer to the proper documentation for this \
-            function at [`BlackBox::get_mut`]."]
-            #[inline(always)]
-            pub fn try_get_mut<T: $($constraint)*>(&self) -> $crate::black_box::DynamicResult<$mutlock<T>> {
-                self.$internal
-                    .try_get_mut()
-            }
-
-            #[inline(always)]
-            pub fn try_ind_mut<T: $($constraint)*>(&self, ind: usize) -> $crate::black_box::DynamicResult<$mutlock<T>> {
-                self.$internal
-                    .try_ind_mut(ind)
-            }
-
-            #[inline(always)]
-            pub fn extract<T: $($constraint)*>(&self) -> $crate::black_box::DynamicResult<T> {
-                self.$internal
-                    .try_extract()
-            }
-
-            #[inline(always)]
-            pub fn extract_many<T: $($constraint)*>(&self) -> $crate::black_box::DynamicResult<Vec<T>> {
-                self.$internal
-                    .try_extract_many()
-            }
-
             #[inline(always)]
             pub fn run_for<
                 'a,
@@ -98,17 +71,7 @@ macro_rules! impl_unit {
     ($name:ident, $traitobject:ty, ($($constraint:tt)*), $storage_wrapper:ident, $mutlock:ident, $unmutlock:ident, $internal:ident, add_unmut) => {
         $crate::impl_unit!($name, $traitobject, ($($constraint)*), $storage_wrapper, $mutlock, $unmutlock, $internal);
         impl $name {
-            #[inline(always)]
-            pub fn try_get<T: $($constraint)*>(&self) -> $crate::black_box::DynamicResult<$unmutlock<T>> {
-                self.$internal
-                    .try_get()
-            }
 
-            #[inline(always)]
-            pub fn try_ind<T: $($constraint)*>(&self, ind: usize) -> $crate::black_box::DynamicResult<$unmutlock<T>> {
-                self.$internal
-                    .try_ind(ind)
-            }
         }
     };
 }

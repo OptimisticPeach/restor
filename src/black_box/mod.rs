@@ -391,7 +391,45 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
         }
     }
 
-    pub fn many<'a, T: Multiple<'a, U>>(&'a self) -> DynamicResult<T::Output> {
+    ///
+    /// "`get`"s locks to a set of types in the storage.
+    ///
+    /// This works for the mutable and immutable variants of the storage,
+    /// and for multiple types at once.
+    ///
+    /// Differentiate between immutable and mutable acquisitions by using
+    /// mutable and immutable references as the type parameters.
+    ///
+    /// Tuple your multiple types together to end up with a tuple of locks
+    /// or use a single type to denote a single lock.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use restor::{DynamicStorage, make_storage, ok};
+    /// let x = make_storage!(DynamicStorage: usize);
+    /// x.insert(32usize).unwrap();
+    /// let y = ok!(x.get::<&usize>());
+    /// assert_eq!(*y, 32usize);
+    /// drop(y);
+    /// let y = ok!(x.get::<&mut usize>());
+    /// *y = 20;
+    /// drop(y);
+    /// let y = ok!(x.get::<&usize>());
+    /// assert_eq!(*y, 20);
+    /// ```
+    /// ```rust
+    /// use restor::{DynamicStorage, make_storage, ok};
+    /// struct Person {
+    ///     name: &'static str,
+    ///     age: usize,
+    /// }
+    /// let x = make_storage!(DynamicStorage: usize, String, Person);
+    /// let no_relatives = 3;
+    /// let email = "john.doe@mailme.com".to_string();
+    ///
+    /// ```
+    ///
+    pub fn get<'a, T: Multiple<'a, U>>(&'a self) -> DynamicResult<T::Output> {
         T::get_many(self)
     }
     pub fn slice<'a, T: SliceMany<'a, U>>(&'a self) -> DynamicResult<T::SliceOutput> {

@@ -419,14 +419,29 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     /// ```
     /// ```rust
     /// use restor::{DynamicStorage, make_storage, ok};
+    /// #[derive(Debug)]
     /// struct Person {
-    ///     name: &'static str,
-    ///     age: usize,
+    ///     pub name: &'static str,
+    ///     pub age: usize,
     /// }
     /// let x = make_storage!(DynamicStorage: usize, String, Person);
     /// let no_relatives = 3;
     /// let email = "john.doe@mailme.com".to_string();
-    ///
+    /// let person = Person {
+    ///     name: "John Doe",
+    ///     age: 32
+    /// };
+    /// x.insert(no_relatives);
+    /// x.insert(email);
+    /// x.insert(person);
+    /// {
+    ///     let (person, no_relatives, mut email) = x.get::<(&Person, &usize, &mut String)>();
+    ///     println!("{:?}'s email is ", &*person);
+    ///     println!("{}", &*email);
+    ///     println!("And they've got {} relatives", *no_relatives);
+    ///     *email = "doe.john@mailme.com".to_string();
+    ///     println!("Their new email is {}", &*email);
+    /// }
     /// ```
     ///
     pub fn get<'a, T: Multiple<'a, U>>(&'a self) -> DynamicResult<T::Output> {

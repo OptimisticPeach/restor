@@ -356,7 +356,7 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     ///     x.split_off(1)
     /// }).unwrap();
     /// assert_eq!(v, vec![1, 2, 3, 4]);
-    /// assert_eq!(*storage.get::<usize>().unwrap(), 0usize);
+    /// assert_eq!(*storage.get::<&usize>().unwrap(), 0usize);
     /// # }
     /// ```
     ///
@@ -411,7 +411,7 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     /// let y = ok!(x.get::<&usize>());
     /// assert_eq!(*y, 32usize);
     /// drop(y);
-    /// let y = ok!(x.get::<&mut usize>());
+    /// let mut y = ok!(x.get::<&mut usize>());
     /// *y = 20;
     /// drop(y);
     /// let y = ok!(x.get::<&usize>());
@@ -425,17 +425,17 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     ///     pub age: usize,
     /// }
     /// let x = make_storage!(DynamicStorage: usize, String, Person);
-    /// let no_relatives = 3;
+    /// let no_relatives = 3usize;
     /// let email = "john.doe@mailme.com".to_string();
     /// let person = Person {
     ///     name: "John Doe",
     ///     age: 32
     /// };
-    /// x.insert(no_relatives);
-    /// x.insert(email);
-    /// x.insert(person);
+    /// x.insert(no_relatives).unwrap();
+    /// x.insert(email).unwrap();
+    /// x.insert(person).unwrap();
     /// {
-    ///     let (person, no_relatives, mut email) = x.get::<(&Person, &usize, &mut String)>();
+    ///     let (person, no_relatives, mut email) = x.get::<(&Person, &usize, &mut String)>().unwrap();
     ///     println!("{:?}'s email is ", &*person);
     ///     println!("{}", &*email);
     ///     println!("And they've got {} relatives", *no_relatives);

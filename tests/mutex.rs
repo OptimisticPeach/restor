@@ -47,9 +47,9 @@ fn borrow_twice_mut() {
     let mut x = MutexStorage::new();
     x.allocate_for::<usize>();
     x.insert(0usize).unwrap();
-    let y = x.try_get_mut::<usize>();
+    let y = x.get::<&mut usize>();
     assert!(y.is_ok());
-    let z = x.try_get_mut::<usize>();
+    let z = x.get::<&mut usize>();
     if let Err(ErrorDesc::BorrowedIncompatibly) = z {
     } else {
         panic!();

@@ -45,8 +45,8 @@ pub enum ErrorDesc {
     /// let mut storage = DynamicStorage::new();
     /// storage.allocate_for::<usize>();
     /// storage.insert(0usize);
-    /// let x = storage.get::<usize>().unwrap();
-    /// let y = storage.get_mut::<usize>();
+    /// let x = storage.get::<&usize>().unwrap();
+    /// let y = storage.get::<&mut usize>();
     /// assert!(y.is_err());
     /// # }
     /// ```
@@ -59,13 +59,13 @@ pub enum ErrorDesc {
     /// # use restor::*;
     /// # fn main() {
     /// let mut storage = DynamicStorage::new();
-    /// let x = storage.get::<usize>();
+    /// let x = storage.get::<&usize>();
     /// assert!(x.is_err());
     /// // Error, there is no unit for `usize` allocated!
     /// drop(x);
     /// storage.allocate_for::<usize>();
     /// storage.insert::<usize>(10);
-    /// let x = storage.get::<usize>().unwrap();
+    /// let x = storage.get::<&usize>().unwrap();
     /// assert_eq!(*x, 10);
     /// # }
     /// ```

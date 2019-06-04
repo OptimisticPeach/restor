@@ -1,4 +1,4 @@
-use restor::{DynamicStorage, ErrorDesc, ok};
+use restor::{ok, DynamicStorage, ErrorDesc};
 
 #[test]
 fn instantiate() {

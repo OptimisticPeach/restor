@@ -403,6 +403,10 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     /// Tuple your multiple types together to end up with a tuple of locks
     /// or use a single type to denote a single lock.
     ///
+    /// This returns a [`Result`]`<T::Output, ErrorDesc>`, which will be
+    /// `Err` if it is impossible to accquire a lock to the data without
+    /// waiting on other threads or the same thread.
+    ///
     /// # Examples
     /// ```rust
     /// use restor::{DynamicStorage, make_storage, ok};
@@ -447,6 +451,30 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     pub fn get<'a, T: Multiple<'a, U>>(&'a self) -> DynamicResult<T::Output> {
         T::get_many(self)
     }
+    ///
+    /// Gets locks to slices of various types in the storage.
+    ///
+    /// This takes type parameters similar to [`BlackBox::get`], which allows most
+    /// code to carry over.
+    ///
+    /// Note that like `get`, this returns a `Result<T::SliceOutput, ErrorDesc>`
+    ///
+    /// ```rust
+    /// use restor::{make_storage, ok, DynamicStorage};
+    /// let storage = make_storage!(DynamicStorage: usize, String);
+    /// storage.insert_many(vec![0usize, 1, 2, 3, 4]);
+    /// storage.insert_many(vec![String::new(); 5]);
+    /// let (mut texts, nums) = storage.slice::<(&mut String, &usize)>().unwrap();
+    /// for (i, n) in nums.iter().enumerate() {
+    ///     texts[i] = format!("{}", n);
+    /// }
+    /// assert_eq!(&*texts, &["0".to_string(),
+    ///                       "1".to_string(),
+    ///                       "2".to_stri
+    ///                       "3".to_string(),
+    ///                       "4".to_string()]);
+    /// ```
+    ///
     pub fn slice<'a, T: SliceMany<'a, U>>(&'a self) -> DynamicResult<T::SliceOutput> {
         T::slice_many(self)
     }

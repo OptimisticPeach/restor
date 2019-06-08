@@ -11,7 +11,7 @@ mod unit;
 
 pub use crate::black_box::unit::Unit;
 pub use errors::{DynamicResult, ErrorDesc, UnitError};
-pub use many::{Extract, ExtractInd, ExtractMultiple, Get, IndMultiple, Multiple, SliceMany};
+pub use many::{Fetch, FetchMultiple};
 pub use storageunit::StorageUnit;
 
 mod refcell_unit;
@@ -448,52 +448,9 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     /// }
     /// ```
     ///
-    pub fn get<'a, T: Multiple<'a, U>>(&'a self) -> DynamicResult<T::Output> {
+    #[inline(always)]
+    pub fn get<'a, T: FetchMultiple<'a, U>>(&'a self) -> DynamicResult<T::Output> {
         T::get_many(self)
-    }
-    ///
-    /// Gets locks to slices of various types in the storage.
-    ///
-    /// This takes type parameters similar to [`BlackBox::get`], which allows most
-    /// code to carry over.
-    ///
-    /// Note that like `get`, this returns a `Result<T::SliceOutput, ErrorDesc>`
-    ///
-    /// ```rust
-    /// use restor::{make_storage, ok, DynamicStorage};
-    /// let storage = make_storage!(DynamicStorage: usize, String);
-    /// storage.insert_many(vec![0usize, 1, 2, 3, 4]);
-    /// storage.insert_many(vec![String::new(); 5]);
-    /// let (mut texts, nums) = storage.slice::<(&mut String, &usize)>().unwrap();
-    /// for (i, n) in nums.iter().enumerate() {
-    ///     texts[i] = format!("{}", n);
-    /// }
-    /// assert_eq!(&*texts, &["0".to_string(),
-    ///                       "1".to_string(),
-    ///                       "2".to_stri
-    ///                       "3".to_string(),
-    ///                       "4".to_string()]);
-    /// ```
-    ///
-    pub fn slice<'a, T: SliceMany<'a, U>>(&'a self) -> DynamicResult<T::SliceOutput> {
-        T::slice_many(self)
-    }
-    pub fn ind<'a, T: IndMultiple<'a, U>>(&'a self, indices: T::Index) -> DynamicResult<T::Output> {
-        T::ind_many(self, indices)
-    }
-    pub fn extract<'a, T: Extract<'a, U>>(&'a self) -> DynamicResult<T::Owned> {
-        T::extract(self)
-    }
-    pub fn extract_ind<'a, T: ExtractInd<'a, U>>(
-        &'a self,
-        indices: T::Index,
-    ) -> DynamicResult<T::Owned> {
-        T::extract_ind(self, indices)
-    }
-    pub fn extract_slice<'a, T: ExtractMultiple<'a, U>>(
-        &'a self,
-    ) -> DynamicResult<T::MultipleOwned> {
-        T::extract_many(self)
     }
 }
 

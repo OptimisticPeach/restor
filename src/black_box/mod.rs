@@ -392,22 +392,31 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     }
 
     ///
-    /// "`get`"s locks to a set of types in the storage.
+    /// "`get`"s values from the `BlackBox`, acquiring either locks or owned values
+    /// depending on the type parameter(s) passed to this function. It follow these
+    /// type mappings:
     ///
-    /// This works for the mutable and immutable variants of the storage,
-    /// and for multiple types at once.
+    /// - `&T -> Lock<T>`
+    /// - `&mut T -> MutLock<T>`
+    /// - `&[T] -> Lock<[T]>`
+    /// - `&mut [T] -> MutLock<T>`
+    /// - `Box<T> -> T`
+    /// - `Vec<T> -> Vec<T>`
     ///
-    /// Differentiate between immutable and mutable acquisitions by using
-    /// mutable and immutable references as the type parameters.
+    /// Where `Lock` and `MutLock` are dependent on the kind of storage that you is
+    /// being asked. For `DynamicStorage` it's [`Ref`] and [`RefMut`] respecitvely.
+    /// For `MutexStorage` it is [`MappedMutexGuard`] for `MutLock`. It isn't possible
+    /// to get a `Lock` from a `MutexStorage` due to its nature. For `RwLockStorage`
+    /// a [`MappedRwLockReadGuard`] and a [`MappedRwLockWriteGuard`] are provided.
     ///
-    /// Tuple your multiple types together to end up with a tuple of locks
-    /// or use a single type to denote a single lock.
-    ///
-    /// This returns a [`Result`]`<T::Output, ErrorDesc>`, which will be
-    /// `Err` if it is impossible to accquire a lock to the data without
-    /// waiting on other threads or the same thread.
+    /// [`Ref`]: https://doc.rust-lang.org/std/cell/struct.Ref.html
+    /// [`RefMut`]: https://doc.rust-lang.org/std/cell/struct.RefMut.html
+    /// [`MappedMutexGuard`]: https://docs.rs/parking_lot/0.8.0/parking_lot/type.MappedMutexGuard.html
+    /// [`MappedRwLockReadGuard`]: https://docs.rs/parking_lot/0.8.0/parking_lot/type.MappedRwLockReadGuard.html
+    /// [`MappedRwLockWriteGuard`]: https://docs.rs/parking_lot/0.8.0/parking_lot/type.MappedRwLockWriteGuard.html
     ///
     /// # Examples
+    /// Read a single resource either mutably or immutably
     /// ```rust
     /// use restor::{DynamicStorage, make_storage, ok};
     /// let x = make_storage!(DynamicStorage: usize);
@@ -421,6 +430,7 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     /// let y = ok!(x.get::<&usize>());
     /// assert_eq!(*y, 20);
     /// ```
+    /// Read multiple resources either mutably or immutably
     /// ```rust
     /// use restor::{DynamicStorage, make_storage, ok};
     /// #[derive(Debug)]

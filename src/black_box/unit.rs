@@ -34,46 +34,11 @@ use std::ops::{Deref, DerefMut};
 pub trait Unit<'a> {
     type Borrowed: Deref<Target = dyn Any> + 'a;
     type MutBorrowed: Deref<Target = dyn Any> + DerefMut + 'a;
-    type Owned: Deref<Target = dyn Any> + DerefMut;
-
-    ///
-    /// Returns an immutable lock to one piece of data.
-    ///
-    fn one(&'a self) -> DynamicResult<Self::Borrowed>;
-    ///
-    /// Returns a mutable lock to one piece of data.
-    ///
-    fn one_mut(&'a self) -> DynamicResult<Self::MutBorrowed>;
-
-    ///
-    /// Indexes into a `Vec` given a particular index and
-    /// returns an immutable lock to that data.
-    ///
-    fn ind(&'a self, ind: usize) -> DynamicResult<Self::Borrowed>;
-    ///
-    /// Indexes into a `Vec` given a particular index and
-    /// returns a mutable lock to that data.
-    ///
-    fn ind_mut(&'a self, ind: usize) -> DynamicResult<Self::MutBorrowed>;
-
-    ///
-    /// Extracts an owned piece of data and returns it.
-    ///
-    fn extract(&self) -> DynamicResult<Self::Owned>;
-    ///
-    /// Extracts an owned piece of data at a given index and returns it.
-    ///
-    fn extract_ind(&self, ind: usize) -> DynamicResult<Self::Owned>;
-    ///
-    /// Extracts many owned pieces of data, and returns a `Box<Vec<T>>`.
-    ///
-    fn extract_many(&self) -> DynamicResult<Self::Owned>;
-
     ///
     /// Inserts an owned piece of data into storage, returning it if
     /// it cannot be inserted.
     ///
-    fn insert_any(&self, new: Self::Owned) -> Option<(Self::Owned, ErrorDesc)>;
+    fn insert_any(&self, new: Box<dyn Any>) -> Option<(Box<dyn Any>, ErrorDesc)>;
     ///
     /// Runs a given function on a `DynamicResult<&[T]>`, and returns the
     /// result of a given function.
@@ -113,24 +78,16 @@ pub trait Unit<'a> {
     fn id(&self) -> TypeId;
 }
 
-impl<
-        'a,
-        R: Deref<Target = dyn Any> + 'a,
-        RM: Deref<Target = dyn Any> + DerefMut + 'a,
-        O: Deref<Target = dyn Any> + DerefMut,
-    > PartialEq for dyn Unit<'a, Borrowed = R, MutBorrowed = RM, Owned = O>
+impl<'a, R: Deref<Target = dyn Any> + 'a, RM: Deref<Target = dyn Any> + DerefMut + 'a> PartialEq
+    for dyn Unit<'a, Borrowed = R, MutBorrowed = RM>
 {
     fn eq(&self, other: &Self) -> bool {
         self.id() == other.id()
     }
 }
 
-impl<
-        'a,
-        R: Deref<Target = dyn Any> + 'a,
-        RM: Deref<Target = dyn Any> + DerefMut + 'a,
-        O: Deref<Target = dyn Any> + DerefMut,
-    > Debug for dyn Unit<'a, Borrowed = R, MutBorrowed = RM, Owned = O>
+impl<'a, R: Deref<Target = dyn Any> + 'a, RM: Deref<Target = dyn Any> + DerefMut + 'a> Debug
+    for dyn Unit<'a, Borrowed = R, MutBorrowed = RM>
 {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         write!(f, "Unit(TypeId: {:?})", self.id())

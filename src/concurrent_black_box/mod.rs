@@ -3,7 +3,7 @@ use std::any::{Any, TypeId};
 use super::black_box::{
     DynamicResult,
     ErrorDesc::{self, *},
-    StorageUnit, Unit, UnitError,
+    StorageUnit, Unit,
 };
 use crate::BlackBox;
 use parking_lot::{
@@ -26,122 +26,6 @@ impl<T> MutexUnit<T> {
 impl<'a, T: 'static + Send> Unit<'a> for MutexUnit<StorageUnit<T>> {
     type Borrowed = MappedMutexGuard<'a, dyn Any>;
     type MutBorrowed = MappedMutexGuard<'a, dyn Any>;
-    type Owned = Box<dyn Any>;
-    fn one(&'a self) -> DynamicResult<MappedMutexGuard<'a, dyn Any>> {
-        if let Some(mut nx) = self.inner.try_lock() {
-            match nx.one_mut() {
-                Ok(_) => Ok(MutexGuard::map(nx, |x| {
-                    let r: &mut dyn Any = &mut *x.one_mut().unwrap();
-                    r
-                })),
-                Err(e) => Err(e),
-            }
-        } else {
-            Err(ErrorDesc::BorrowedIncompatibly)
-        }
-    }
-    fn one_mut(&'a self) -> DynamicResult<MappedMutexGuard<'a, dyn Any>> {
-        if let Some(mut nx) = self.inner.try_lock() {
-            match nx.one_mut() {
-                Ok(_) => Ok(MutexGuard::map(nx, |x| {
-                    let r: &mut dyn Any = &mut *x.one_mut().unwrap();
-                    r
-                })),
-                Err(e) => Err(e),
-            }
-        } else {
-            Err(ErrorDesc::BorrowedIncompatibly)
-        }
-    }
-
-    fn ind(&'a self, ind: usize) -> DynamicResult<MappedMutexGuard<'a, dyn Any>> {
-        if let Some(mut nx) = self.inner.try_lock() {
-            match nx.many_mut() {
-                Ok(slice) => match slice.get_mut(ind) {
-                    Some(_) => Ok(MutexGuard::map(nx, |x| {
-                        let r: &mut dyn Any = &mut x.many_mut().unwrap()[ind];
-                        r
-                    })),
-                    None => Err(ErrorDesc::Unit(UnitError::OutOfBounds)),
-                },
-                Err(e) => match nx.one_mut() {
-                    Ok(_) => Ok(MutexGuard::map(nx, |x| {
-                        &mut *x.one_mut().unwrap() as &mut _
-                    })),
-                    Err(ne) => Err(e & ne),
-                },
-            }
-        } else {
-            Err(ErrorDesc::BorrowedIncompatibly)
-        }
-    }
-    fn ind_mut(&'a self, ind: usize) -> DynamicResult<MappedMutexGuard<'a, dyn Any>> {
-        if let Some(mut nx) = self.inner.try_lock() {
-            match nx.many_mut() {
-                Ok(slice) => match slice.get_mut(ind) {
-                    Some(_) => Ok(MutexGuard::map(nx, |x| {
-                        let r: &mut dyn Any = &mut x.many_mut().unwrap()[ind];
-                        r
-                    })),
-                    None => Err(ErrorDesc::Unit(UnitError::OutOfBounds)),
-                },
-                Err(e) => match nx.one_mut() {
-                    Ok(_) => Ok(MutexGuard::map(nx, |x| {
-                        &mut *x.one_mut().unwrap() as &mut _
-                    })),
-                    Err(ne) => Err(e & ne),
-                },
-            }
-        } else {
-            Err(ErrorDesc::BorrowedIncompatibly)
-        }
-    }
-
-    fn extract(&self) -> DynamicResult<Box<dyn Any>> {
-        if let Some(mut x) = self.inner.try_lock() {
-            match x.extract_one() {
-                Ok(x) => Ok(Box::new(x)),
-                Err(e) => Err(e),
-            }
-        } else {
-            Err(ErrorDesc::BorrowedIncompatibly)
-        }
-    }
-    fn extract_ind(&self, ind: usize) -> DynamicResult<Box<dyn Any>> {
-        if let Some(mut borrowed) = self.inner.try_lock() {
-            match borrowed.many_mut() {
-                Ok(_) => borrowed.many_mut().and_then(|x| {
-                    if ind < x.len() {
-                        let x: Box<dyn Any> = Box::new(x.remove(ind));
-                        Ok(x)
-                    } else {
-                        Err(ErrorDesc::Unit(UnitError::OutOfBounds))
-                    }
-                }),
-                Err(e) => {
-                    if ind == 0 {
-                        borrowed
-                            .extract_one()
-                            .map(|x| Box::new(x) as _)
-                            .map_err(|ne| ne & e)
-                    } else {
-                        Err(e)
-                    }
-                }
-            }
-        } else {
-            Err(ErrorDesc::BorrowedIncompatibly)
-        }
-    }
-    fn extract_many(&self) -> DynamicResult<Box<dyn Any>> {
-        Ok(Box::new(
-            self.inner
-                .try_lock()
-                .ok_or(ErrorDesc::BorrowedIncompatibly)?
-                .extract_many_boxed()?,
-        ))
-    }
-
     fn insert_any(&self, new: Box<dyn Any>) -> Option<(Box<dyn Any>, ErrorDesc)> {
         let newtype = new.type_id();
         if let Some(mut x) = self.inner.try_lock() {
@@ -228,131 +112,6 @@ impl<T> RwLockUnit<T> {
 impl<'a, T: 'static + Send> Unit<'a> for RwLockUnit<StorageUnit<T>> {
     type Borrowed = MappedRwLockReadGuard<'a, dyn Any>;
     type MutBorrowed = MappedRwLockWriteGuard<'a, dyn Any>;
-    type Owned = Box<dyn Any>;
-    fn one(&'a self) -> DynamicResult<MappedRwLockReadGuard<'a, dyn Any>> {
-        if let Some(nx) = self.inner.try_read() {
-            match nx.one() {
-                Ok(_) => Ok(RwLockReadGuard::map(nx, |x| {
-                    let r: &dyn Any = &*x.one().unwrap();
-                    r
-                })),
-                Err(e) => Err(e),
-            }
-        } else {
-            Err(ErrorDesc::BorrowedIncompatibly)
-        }
-    }
-    fn one_mut(&'a self) -> DynamicResult<MappedRwLockWriteGuard<'a, dyn Any>> {
-        if let Some(mut nx) = self.inner.try_write() {
-            match nx.one_mut() {
-                Ok(_) => Ok(RwLockWriteGuard::map(nx, |x| {
-                    let r: &mut dyn Any = &mut *x.one_mut().unwrap();
-                    r
-                })),
-                Err(e) => Err(e),
-            }
-        } else {
-            Err(ErrorDesc::BorrowedIncompatibly)
-        }
-    }
-
-    fn ind(&'a self, ind: usize) -> DynamicResult<MappedRwLockReadGuard<'a, dyn Any>> {
-        if let Some(nx) = self.inner.try_read() {
-            match nx.many() {
-                Ok(slice) => match slice.get(ind) {
-                    Some(_) => Ok(RwLockReadGuard::map(nx, |x| {
-                        let r: &dyn Any = &x.many().unwrap()[ind];
-                        r
-                    })),
-                    None => Err(ErrorDesc::Unit(UnitError::OutOfBounds)),
-                },
-                Err(e) => {
-                    if ind == 0 {
-                        match nx.one() {
-                            Ok(_) => Ok(RwLockReadGuard::map(nx, |x| x.one().unwrap() as &_)),
-                            Err(ne) => Err(e & ne),
-                        }
-                    } else {
-                        Err(e)
-                    }
-                }
-            }
-        } else {
-            Err(ErrorDesc::BorrowedIncompatibly)
-        }
-    }
-    fn ind_mut(&'a self, ind: usize) -> DynamicResult<MappedRwLockWriteGuard<'a, dyn Any>> {
-        if let Some(mut nx) = self.inner.try_write() {
-            match nx.many() {
-                Ok(slice) => match slice.get(ind) {
-                    Some(_) => Ok(RwLockWriteGuard::map(nx, |x| {
-                        let r: &mut dyn Any = &mut x.many_mut().unwrap()[ind];
-                        r
-                    })),
-                    None => Err(ErrorDesc::Unit(UnitError::OutOfBounds)),
-                },
-                Err(e) => {
-                    if ind == 0 {
-                        match nx.one_mut() {
-                            Ok(_) => Ok(RwLockWriteGuard::map(nx, |nx| {
-                                nx.one_mut().unwrap() as &mut _
-                            })),
-                            Err(ne) => Err(e & ne),
-                        }
-                    } else {
-                        Err(e)
-                    }
-                }
-            }
-        } else {
-            Err(ErrorDesc::BorrowedIncompatibly)
-        }
-    }
-
-    fn extract(&self) -> DynamicResult<Box<dyn Any>> {
-        if let Some(mut x) = self.inner.try_write() {
-            match x.extract_one() {
-                Ok(x) => Ok(Box::new(x)),
-                Err(e) => Err(e),
-            }
-        } else {
-            Err(ErrorDesc::BorrowedIncompatibly)
-        }
-    }
-    fn extract_ind(&self, ind: usize) -> DynamicResult<Box<dyn Any>> {
-        if let Some(mut borrowed) = self.inner.try_write() {
-            match borrowed.many_mut() {
-                Ok(_) => borrowed.many_mut().and_then(|x| {
-                    if ind < x.len() {
-                        let x: Box<dyn Any> = Box::new(x.remove(ind));
-                        Ok(x)
-                    } else {
-                        Err(ErrorDesc::Unit(UnitError::OutOfBounds))
-                    }
-                }),
-                Err(e) => {
-                    if ind == 0 {
-                        match borrowed.extract_one() {
-                            Ok(x) => Ok(Box::new(x)),
-                            Err(ne) => Err(ne & e),
-                        }
-                    } else {
-                        Err(e)
-                    }
-                }
-            }
-        } else {
-            Err(ErrorDesc::BorrowedIncompatibly)
-        }
-    }
-    fn extract_many(&self) -> DynamicResult<Box<dyn Any>> {
-        Ok(Box::new(
-            self.inner
-                .try_write()
-                .ok_or(ErrorDesc::BorrowedIncompatibly)?
-                .extract_many_boxed()?,
-        ))
-    }
     fn storage(&'a self) -> DynamicResult<MappedRwLockReadGuard<'a, dyn Any>> {
         self.inner
             .try_read()
@@ -430,7 +189,6 @@ type RwLockBlackBox = BlackBox<
         'a,
         Borrowed = MappedRwLockReadGuard<'a, dyn Any>,
         MutBorrowed = MappedRwLockWriteGuard<'a, dyn Any>,
-        Owned = Box<dyn Any>,
     > + Send
          + Sync),
 >;
@@ -488,7 +246,6 @@ type MutexBlackBox = BlackBox<
         'a,
         Borrowed = MappedMutexGuard<'a, dyn Any>,
         MutBorrowed = MappedMutexGuard<'a, dyn Any>,
-        Owned = Box<dyn Any>,
     > + Send
          + Sync),
 >;

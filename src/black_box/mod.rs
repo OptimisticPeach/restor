@@ -112,7 +112,7 @@ pub struct BlackBox<U: ?Sized> {
 type Borrowed<'a, T> = <T as Unit<'a>>::Borrowed;
 type MutBorrowed<'a, T> = <T as Unit<'a>>::MutBorrowed;
 
-impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
+impl<U: ?Sized + for<'a> Unit<'a>> BlackBox<U> {
     ///
     /// A default implementation of `BlackBox`
     ///
@@ -468,14 +468,7 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
 }
 
 impl
-    BlackBox<
-        (dyn for<'a> Unit<
-            'a,
-            Borrowed = Ref<'a, dyn Any>,
-            MutBorrowed = RefMut<'a, dyn Any>,
-            Owned = Box<dyn Any>,
-        >),
-    >
+    BlackBox<(dyn for<'a> Unit<'a, Borrowed = Ref<'a, dyn Any>, MutBorrowed = RefMut<'a, dyn Any>>)>
 {
     #[inline]
     pub fn allocate_for<T: 'static>(&mut self) {

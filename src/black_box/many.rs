@@ -9,7 +9,7 @@ use std::any::Any;
 /// Note that this trait should be considered "sealed" as it is already implemented
 /// for all the types it should be implemented for.
 ///
-pub trait Fetch<'a, U: Unit<'a, Owned = Box<dyn Any + 'static>> + ?Sized> {
+pub trait Fetch<'a, U: Unit<'a> + ?Sized> {
     ///
     /// The type output for `Self`.
     ///
@@ -21,11 +21,7 @@ pub trait Fetch<'a, U: Unit<'a, Owned = Box<dyn Any + 'static>> + ?Sized> {
 }
 
 //Single value immutable
-impl<
-        'a,
-        T: Sized + Any + 'static,
-        U: for<'b> Unit<'b, Owned = Box<dyn Any + 'static>> + ?Sized,
-    > Fetch<'a, U> for &T
+impl<'a, T: Sized + Any + 'static, U: for<'b> Unit<'b> + ?Sized> Fetch<'a, U> for &T
 where
     Borrowed<'a, U>: Map<(dyn Any), StorageUnit<T>, Func = dyn Fn(&dyn Any) -> &StorageUnit<T>>,
     <Borrowed<'a, U> as Map<dyn Any, StorageUnit<T>>>::Output:
@@ -48,11 +44,7 @@ where
 }
 
 //Single value mutable
-impl<
-        'a,
-        T: Sized + Any + 'static,
-        U: for<'b> Unit<'b, Owned = Box<dyn Any + 'static>> + ?Sized,
-    > Fetch<'a, U> for &mut T
+impl<'a, T: Sized + Any + 'static, U: for<'b> Unit<'b> + ?Sized> Fetch<'a, U> for &mut T
 where
     MutBorrowed<'a, U>:
         MapMut<(dyn Any), StorageUnit<T>, Func = dyn Fn(&mut dyn Any) -> &mut StorageUnit<T>>,
@@ -76,11 +68,7 @@ where
 }
 
 //Slice immutable
-impl<
-        'a,
-        T: Sized + Any + 'static,
-        U: for<'b> Unit<'b, Owned = Box<dyn Any + 'static>> + ?Sized,
-    > Fetch<'a, U> for &[T]
+impl<'a, T: Sized + Any + 'static, U: for<'b> Unit<'b> + ?Sized> Fetch<'a, U> for &[T]
 where
     Borrowed<'a, U>: Map<(dyn Any), StorageUnit<T>, Func = dyn Fn(&dyn Any) -> &StorageUnit<T>>,
     <Borrowed<'a, U> as Map<dyn Any, StorageUnit<T>>>::Output:
@@ -103,11 +91,7 @@ where
 }
 
 //Slice mutable
-impl<
-        'a,
-        T: Sized + Any + 'static,
-        U: for<'b> Unit<'b, Owned = Box<dyn Any + 'static>> + ?Sized,
-    > Fetch<'a, U> for &mut [T]
+impl<'a, T: Sized + Any + 'static, U: for<'b> Unit<'b> + ?Sized> Fetch<'a, U> for &mut [T]
 where
     MutBorrowed<'a, U>:
         MapMut<(dyn Any), StorageUnit<T>, Func = dyn Fn(&mut dyn Any) -> &mut StorageUnit<T>>,
@@ -131,11 +115,7 @@ where
 }
 
 //Own single
-impl<
-        'a,
-        T: Sized + Any + 'static,
-        U: for<'b> Unit<'b, Owned = Box<dyn Any + 'static>> + ?Sized,
-    > Fetch<'a, U> for Box<T>
+impl<'a, T: Sized + Any + 'static, U: for<'b> Unit<'b> + ?Sized> Fetch<'a, U> for Box<T>
 where
     MutBorrowed<'a, U>:
         MapMut<(dyn Any), StorageUnit<T>, Func = dyn Fn(&mut dyn Any) -> &mut StorageUnit<T>>,
@@ -152,11 +132,7 @@ where
 }
 
 //Own many
-impl<
-        'a,
-        T: Sized + Any + 'static,
-        U: for<'b> Unit<'b, Owned = Box<dyn Any + 'static>> + ?Sized,
-    > Fetch<'a, U> for Vec<T>
+impl<'a, T: Sized + Any + 'static, U: for<'b> Unit<'b> + ?Sized> Fetch<'a, U> for Vec<T>
 where
     MutBorrowed<'a, U>:
         MapMut<(dyn Any), StorageUnit<T>, Func = dyn Fn(&mut dyn Any) -> &mut StorageUnit<T>>,
@@ -205,7 +181,7 @@ macro_rules! impl_single {
         //One
         impl<'a, U: ?Sized, T: Sized + Any + 'static> FetchMultiple<'a, U> for $first
         where
-            U: for<'b> Unit<'b, Owned = Box<dyn Any>>,
+            U: for<'b> Unit<'b>,
             $($f_constraints)+
             $first: Fetch<'a, U>,
         {
@@ -265,7 +241,7 @@ macro_rules! impl_tuple {
                 $typ: Fetch<'a, U>,
             )*
             $first_type: Fetch<'a, U>,
-            U: Unit<'a, Owned = Box<dyn Any>>,
+            U: Unit<'a>,
         {
             type Output = ($first_type::Output, $($typ::Output),*);
             #[inline]

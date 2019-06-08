@@ -47,12 +47,7 @@ mod macros;
 /// [`RefCell`]: https://doc.rust-lang.org/std/cell/struct.RefCell.html
 ///
 pub type DynamicStorage = BlackBox<
-    (dyn for<'a> Unit<
-        'a,
-        Borrowed = Ref<'a, dyn Any>,
-        MutBorrowed = RefMut<'a, dyn Any>,
-        Owned = Box<dyn Any>,
-    >),
+    (dyn for<'a> Unit<'a, Borrowed = Ref<'a, dyn Any>, MutBorrowed = RefMut<'a, dyn Any>>),
 >;
 
 ///

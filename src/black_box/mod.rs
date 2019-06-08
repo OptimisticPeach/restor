@@ -250,7 +250,7 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     ///
     /// # Example
     /// ### Return nothing
-    /// ```
+    /// ```rust
     /// # fn main() {
     /// use restor::{DynamicStorage, make_storage};
     /// let storage = make_storage!(DynamicStorage: usize);
@@ -261,7 +261,7 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     /// # }
     /// ```
     /// ### Return something
-    /// ```
+    /// ```rust
     /// # fn main() {
     /// use restor::{DynamicStorage, make_storage};
     /// let storage = make_storage!(DynamicStorage: usize);
@@ -334,8 +334,11 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     /// In the case that the `Vec` is left in an invalid state, only one value or no
     /// values, the internal storage is rearranged.
     ///
+    /// # Note
+    /// That this is the only way to extract an item from the storage given an index.
+    ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// # fn main() {
     /// use restor::{DynamicStorage, make_storage};
     /// let storage = make_storage!(DynamicStorage: usize);
@@ -345,7 +348,7 @@ impl<U: ?Sized + for<'a> Unit<'a, Owned = Box<dyn Any>>> BlackBox<U> {
     /// # }
     /// ```
     ///
-    /// ```
+    /// ```rust
     /// # fn main() {
     /// use restor::{DynamicStorage, make_storage};
     /// let storage = make_storage!(DynamicStorage: usize);

@@ -1,8 +1,22 @@
 use super::{BlackBox, Borrowed, DynamicResult, Map, MapMut, MutBorrowed, StorageUnit, Unit};
 use std::any::Any;
 
+///
+/// The base "get" trait for acquiring data from storage. This is implemented on
+/// six types, each of which have a different output. The output is dependent on
+/// the type it is being implemented for.
+///
+/// Note that this trait should be considered "sealed" as it is already implemented
+/// for all the types it should be implemented for.
+///
 pub trait Fetch<'a, U: Unit<'a, Owned = Box<dyn Any + 'static>> + ?Sized> {
+    ///
+    /// The type output for `Self`.
+    ///
     type Output: 'a;
+    ///
+    /// Gets data from the [`BlackBox`](./struct.BlackBox.html) depending on `Self` and `Output`.
+    ///
     fn get(boxed: &'a BlackBox<U>) -> DynamicResult<Self::Output>;
 }
 
@@ -158,6 +172,27 @@ where
     }
 }
 
+///
+/// An abstraction over `Fetch` which works over multiple types, and the
+/// six types which have `Fetch` pre-implemented. This is therefore implemented
+/// for the following types:
+///
+/// - `&T`
+/// - `&mut T`
+/// - `&[T]`
+/// - `&mut [T]`
+/// - `Box<T>`
+/// - `Vec<T>`
+/// - `(A,)`
+/// - `(A, B)`
+/// - `(A, B, C)`
+/// - `(A, B, C, D)`
+/// - ...
+/// - `(A, B, C, D, E, F, G, H, I, J, K)`
+///
+/// Where each one of the type parameters in the tuple versions must implement
+/// `Fetch`.
+///
 pub trait FetchMultiple<'a, U: ?Sized> {
     type Output: 'a;
     fn get_many(boxed: &'a BlackBox<U>) -> DynamicResult<Self::Output>;

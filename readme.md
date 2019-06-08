@@ -1,24 +1,27 @@
 # restor [![Crates.io](https://img.shields.io/badge/crates.io-docs.rs-brightgreen.svg?link=https://crates.io/crates/restor&link=https://docs.rs/restor/)](docs.rs/restor)
-A dyamic resource storage written in rust. It supports storage of multiple types and multiple entries and dynamic borrow checking with the help of [`RefCell`](https://doc.rust-lang.org/std/cell/struct.RefCell.html)s, [`Mutex`](https://docs.rs/parking_lot/0.7.1/parking_lot/type.Mutex.html)s and [`RwLock`](https://docs.rs/parking_lot/0.7.1/parking_lot/type.RwLock.html)s from [`parking_lot`](https://docs.rs/parking_lot/0.7.1/parking_lot/index.html).
+A dyamic resource storage written in rust. It supports storage of multiple types and multiple entries and dynamic borrow checking with the help of [`RefCell`](https://doc.rust-lang.org/std/cell/struct.RefCell.html)s, [`Mutex`](https://docs.rs/parking_lot/0.7.1/parking_lot/type.Mutex.html)s and [`RwLock`](https://docs.rs/parking_lot/0.7.1/parking_lot/type.RwLock.html)s from [`parking_lot`](https://docs.rs/parking_lot/0.7.1/parking_lot/index.html). It also supports extracting and aqcuiring multiple types at once. 
 
 ## Example:
 ```rust
 use restor::{DynamicStorage, make_storage};
 
 fn main() {
+    // Use the shorthand for creating storage with preallocated types 
     let x = make_storage!(DynamicStorage: usize, String);
-    x.insert_many(vec![2usize; 20]).unwrap();
+    // Insert some data into the storage, either many at once, or one
+    x.insert_many((0..10).collect::<Vec<usize>>()).unwrap();
     x.insert("abc".to_string()).unwrap();
-    let mut mystring = x.get_mut::<String>().unwrap();
-    x.run_for::<usize, _, _>(move |res| {
-        for i in res.unwrap() {
-            *mystring = format!("{}, {}", &*mystring, i);
-        }
-    });
-    println!("{}", &*x.get::<String>().unwrap());
+    create_string(&x);
+    println!("{}", &*x.get::<&String>().unwrap());
+}
+
+fn create_string(x: &DynamicStorage) {
+    let mut mystring = x.get::<&mut String>().unwrap();
+    for i in x.get::<&[usize]>().unwrap().iter() {
+        *mystring = format!("{}, {}", &*mystring, i);
+    }
 }
 ```
-
 ## How it works:
 `BlackBox` (Or `DynamicStorage`) is defined as so (More or less):
 ```rust

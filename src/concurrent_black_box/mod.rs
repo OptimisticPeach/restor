@@ -58,6 +58,13 @@ impl<'a, T: 'static + Send> Unit<'a> for MutexUnit<StorageUnit<T>> {
         self.storage()
     }
 
+    fn waiting_storage(&'a self) -> MappedMutexGuard<'a, dyn Any> {
+        MutexGuard::map::<dyn Any, _>(self.inner.lock(), |z| &mut *z)
+    }
+    fn waiting_storage_mut(&'a self) -> MappedMutexGuard<'a, dyn Any> {
+        self.waiting_storage()
+    }
+
     unsafe fn run_for(
         &self,
         (t, ptr): (TypeId, (*const (), *const ())),
@@ -124,6 +131,14 @@ impl<'a, T: 'static + Send> Unit<'a> for RwLockUnit<StorageUnit<T>> {
             .map(|x| RwLockWriteGuard::map::<dyn Any, _>(x, |z| &mut *z))
             .ok_or(BorrowedIncompatibly)
     }
+
+    fn waiting_storage(&'a self) -> MappedRwLockReadGuard<'a, dyn Any> {
+        RwLockReadGuard::map::<dyn Any, _>(self.inner.read(), |z| &*z)
+    }
+    fn waiting_storage_mut(&'a self) -> MappedRwLockWriteGuard<'a, dyn Any> {
+        RwLockWriteGuard::map::<dyn Any, _>(self.inner.write(), |z| &mut *z)
+    }
+
     fn insert_any(&self, new: Box<dyn Any>) -> Option<(Box<dyn Any>, ErrorDesc)> {
         let newtype = new.type_id();
         if let Some(mut x) = self.inner.try_write() {

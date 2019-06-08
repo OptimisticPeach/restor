@@ -59,6 +59,13 @@ impl<'a, T: 'static> Unit<'a> for RefCellUnit<StorageUnit<T>> {
             .ok_or(ErrorDesc::BorrowedIncompatibly)
     }
 
+    fn waiting_storage(&'a self) -> Ref<'a, dyn Any> {
+        unreachable!()
+    }
+    fn waiting_storage_mut(&'a self) -> RefMut<'a, dyn Any> {
+        unreachable!()
+    }
+
     unsafe fn run_for(
         &self,
         (t, ptr): (TypeId, (*const (), *const ())),

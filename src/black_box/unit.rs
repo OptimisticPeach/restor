@@ -1,4 +1,5 @@
 use super::errors::*;
+use parking_lot::{MappedMutexGuard, MappedRwLockReadGuard, MappedRwLockWriteGuard};
 use std::any::{Any, TypeId};
 use std::fmt::{Debug, Formatter};
 use std::ops::{Deref, DerefMut};
@@ -71,6 +72,13 @@ pub trait Unit<'a> {
     ///
     fn storage_mut(&'a self) -> DynamicResult<Self::MutBorrowed>;
 
+    fn waiting_storage(&'a self) -> Self::Borrowed
+    where
+        Self::Borrowed: Waitable;
+    fn waiting_storage_mut(&'a self) -> Self::MutBorrowed
+    where
+        Self::MutBorrowed: Waitable;
+
     ///
     /// Returns the `TypeId` of the type of data contained in the
     /// `StorageUnit<T>` (So the `TypeId` of `T`).
@@ -93,3 +101,9 @@ impl<'a, R: Deref<Target = dyn Any> + 'a, RM: Deref<Target = dyn Any> + DerefMut
         write!(f, "Unit(TypeId: {:?})", self.id())
     }
 }
+
+pub trait Waitable {}
+
+impl<'b> Waitable for MappedMutexGuard<'b, dyn Any> {}
+impl<'b> Waitable for MappedRwLockReadGuard<'b, dyn Any> {}
+impl<'b> Waitable for MappedRwLockWriteGuard<'b, dyn Any> {}

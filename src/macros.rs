@@ -40,25 +40,11 @@ macro_rules! impl_unit {
             }
 
             #[inline(always)]
-            pub fn run_for<
-                'a,
-                T: $($constraint)*,
-                D: 'static + Any,
-                F: FnMut(DynamicResult<&[T]>) -> D + 'a,
-            >(
-                &self,
-                f: F,
-            ) -> $crate::black_box::DynamicResult<D> {
-                self.$internal
-                    .run_for(f)
-            }
-
-            #[inline(always)]
             pub fn run_for_mut<
                 'a,
                 T: $($constraint)*,
                 D: 'static + Any,
-                F: FnMut($crate::black_box::DynamicResult<&mut Vec<T>>) -> D + 'a
+                F: FnMut(&mut Vec<T>) -> D + 'a
             >(
                 &self,
                 f: F
@@ -71,7 +57,19 @@ macro_rules! impl_unit {
     ($name:ident, $traitobject:ty, ($($constraint:tt)*), $storage_wrapper:ident, $mutlock:ident, $unmutlock:ident, $internal:ident, add_unmut) => {
         $crate::impl_unit!($name, $traitobject, ($($constraint)*), $storage_wrapper, $mutlock, $unmutlock, $internal);
         impl $name {
-
+            #[inline(always)]
+            pub fn run_for<
+                'a,
+                T: $($constraint)*,
+                D: 'static + Any,
+                F: FnMut(&[T]) -> D + 'a,
+            >(
+                &self,
+                f: F,
+            ) -> $crate::black_box::DynamicResult<D> {
+                self.$internal
+                    .run_for(f)
+            }
         }
     };
 }

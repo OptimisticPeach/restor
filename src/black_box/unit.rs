@@ -40,28 +40,6 @@ pub trait Unit<'a> {
     /// it cannot be inserted.
     ///
     fn insert_any(&self, new: Box<dyn Any>) -> Option<(Box<dyn Any>, ErrorDesc)>;
-    ///
-    /// Runs a given function on a `DynamicResult<&[T]>`, and returns the
-    /// result of a given function.
-    ///
-    /// # Unsafety
-    /// This will panic if it is given the wrong `TypeId` and will run
-    /// undefined behaviour in the case that it has a wrong function pointer
-    /// passed to it.
-    ///
-    /// # Calling
-    /// The parameter is laid out as such:
-    ///
-    /// `(TypeId, (*const (), *const ())`
-    ///
-    /// - The `TypeId` is used to assure that the data being passed to it is
-    /// a `dyn FnMut(DynamicResult<&[T]>) -> Option<Box<dyn Any>`.
-    /// - The tuple containing two pointers is a fat pointer to the function
-    ///   and the functions's vtable. This should not be created by the caller
-    ///   and should instead be `std::mem::transmute`d from a preexisting function.
-    ///
-    unsafe fn run_for(&self, func: (TypeId, (*const (), *const ())))
-        -> DynamicResult<Box<dyn Any>>;
 
     ///
     /// Returns an immutable lock to the internal `StorageUnit<T>`

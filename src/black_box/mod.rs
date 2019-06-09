@@ -241,12 +241,12 @@ impl<U: ?Sized + for<'a> Unit<'a>> BlackBox<U> {
     /// The function may return a piece of data, which will be returned
     /// in the [`DynamicResult`]`<D>` that is returned.
     ///
-    /// The function takes a `Result<&[T], ErrorDesc>`, so it is responsible
-    /// for handling the case that there isn't available data or it's
-    /// incompatibly borrowed or locked.
+    /// The function takes a `&[T]`, so in the case it is impossible
+    /// to acquire the appropriate data, it will short circuit and
+    /// return the appropriate error instead of running `f`.
     ///
     /// The function is also `FnMut` so it can therefore mutate state
-    /// such as a `move ||` closure.
+    /// such as in a `move ||` closure.
     ///
     /// # Example
     /// ### Return nothing
@@ -256,7 +256,7 @@ impl<U: ?Sized + for<'a> Unit<'a>> BlackBox<U> {
     /// let storage = make_storage!(DynamicStorage: usize);
     /// storage.insert_many(vec![1usize, 2, 4, 8, 16, 32, 64, 128]).unwrap();
     /// storage.run_for::<usize, _, _>(|x| {
-    ///     assert_eq!(x.unwrap().iter().sum::<usize>(), 0b11111111);
+    ///     assert_eq!(x.iter().sum::<usize>(), 0b11111111);
     /// });
     /// # }
     /// ```
@@ -267,8 +267,7 @@ impl<U: ?Sized + for<'a> Unit<'a>> BlackBox<U> {
     /// let storage = make_storage!(DynamicStorage: usize);
     /// storage.insert_many(vec![0usize, 1, 2, 3, 4, 5, 6, 7]).unwrap();
     /// let transformed = storage.run_for::<usize, _, _>(|x| {
-    ///     x.unwrap()
-    ///      .iter()
+    ///     x.iter()
     ///      .cloned()
     ///      .map(|nx| 2usize.pow(nx as u32))
     ///      .collect::<Vec<_>>()
@@ -285,42 +284,22 @@ impl<U: ?Sized + for<'a> Unit<'a>> BlackBox<U> {
     /// let storage = make_storage!(DynamicStorage: usize);
     /// storage.insert_many(vec![1usize, 2, 4, 8, 16, 32, 64, 128]).unwrap();
     /// let res = storage.run_for::<usize, _, _>(|x| {
-    ///     match x {
-    ///         Ok(x) => Some(x.iter().sum::<usize>()),
-    ///         Err(e) => {
-    ///             println!("{:?}", e);
-    ///             None
-    ///         }
-    ///     }
-    /// });
+    ///     x.iter().sum::<usize>()
+    /// }).expect("Error, couldn't get lock");
     /// println!("{:?}", res);
     /// # }
     /// ```
     ///
-    pub fn run_for<'a, T: 'static, D: 'static + Any, F: FnMut(DynamicResult<&[T]>) -> D + 'a>(
-        &self,
+    pub fn run_for<'a, 'b, T: 'static, D: 'static + Any, F: FnMut(&[T]) -> D + 'a>(
+        &'b self,
         mut f: F,
-    ) -> DynamicResult<D> {
-        let mut new_fn = |x: DynamicResult<&[T]>| {
-            let var: D = f(x);
-            Box::new(var) as Box<dyn Any>
-        };
-
-        let ptr = unsafe {
-            std::mem::transmute::<_, (*const (), *const ())>(
-                &mut new_fn as &mut dyn FnMut(DynamicResult<&[T]>) -> Box<dyn Any>,
-            )
-        };
-
-        let t = TypeId::of::<(dyn FnMut(DynamicResult<&[T]>) -> Box<dyn Any>)>();
-
-        match self.unit_get::<T>() {
-            Ok(x) => unsafe {
-                let val = x.run_for((t, ptr));
-                val.map(|x| *x.downcast().unwrap())
-            },
-            Err(e) => Err(e),
-        }
+    ) -> DynamicResult<D>
+    where Borrowed<'b, U>: Map<dyn Any, StorageUnit<T>, Func = dyn Fn(&dyn Any) -> &StorageUnit<T>> {
+        let unit = self.unit_get::<T>()?;
+        let dynstorage = unit.storage()?;
+        let conv_func: &dyn for <'r> Fn(&'r dyn Any) -> &'r StorageUnit<T> = &|x| x.downcast_ref::<StorageUnit<T>>().unwrap();
+        let storage = Map::map(dynstorage, conv_func);
+        Ok(f(storage.many()?))
     }
 
     ///
@@ -365,33 +344,22 @@ impl<U: ?Sized + for<'a> Unit<'a>> BlackBox<U> {
     ///
     pub fn run_for_mut<
         'a,
+        'b,
         T: 'static,
         D: 'static + Any,
-        F: FnMut(DynamicResult<&mut Vec<T>>) -> D + 'a,
+        F: FnMut(&mut Vec<T>) -> D + 'a,
     >(
-        &self,
+        &'b self,
         mut f: F,
-    ) -> DynamicResult<D> {
-        let mut new_fn = |x: DynamicResult<&mut Vec<T>>| {
-            let var: D = f(x);
-            Box::new(var) as Box<dyn Any>
-        };
-
-        let ptr = unsafe {
-            std::mem::transmute::<_, (*const (), *const ())>(
-                &mut new_fn as &mut dyn FnMut(DynamicResult<&mut Vec<T>>) -> Box<dyn Any>,
-            )
-        };
-
-        let t = TypeId::of::<(dyn FnMut(DynamicResult<&mut Vec<T>>) -> Box<dyn Any>)>();
-
-        match self.unit_get::<T>() {
-            Ok(x) => unsafe {
-                let val = x.run_for((t, ptr));
-                val.map(|x| *x.downcast().unwrap())
-            },
-            Err(e) => Err(e),
-        }
+    ) -> DynamicResult<D>
+    where MutBorrowed<'b, U>: MapMut<dyn Any, StorageUnit<T>, Func = dyn Fn(&mut dyn Any) -> &mut StorageUnit<T>> {
+        let unit = self.unit_get::<T>()?;
+        let dynstorage = unit.storage_mut()?;
+        let conv_func: &dyn for <'r> Fn(&'r mut dyn Any) -> &'r mut StorageUnit<T> = &|x: &mut dyn Any| x.downcast_mut::<StorageUnit<T>>().unwrap();
+        let mut storage = MapMut::map(dynstorage, conv_func);
+        let res = f(storage.many_mut()?);
+        storage.rearrange_if_necessary();
+        Ok(res)
     }
 
     ///

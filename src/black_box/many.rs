@@ -1,4 +1,6 @@
-use super::{BlackBox, Borrowed, DynamicResult, Map, MapMut, MutBorrowed, StorageUnit, Unit, Waitable};
+use super::{
+    BlackBox, Borrowed, DynamicResult, Map, MapMut, MutBorrowed, StorageUnit, Unit, Waitable,
+};
 use std::any::Any;
 
 ///
@@ -23,7 +25,9 @@ pub trait Fetch<'a, U: Unit<'a> + ?Sized> {
     /// This function waits on availability for the lock.
     ///
     fn waiting_get(boxed: &'a BlackBox<U>) -> DynamicResult<Self::Output>
-    where Borrowed<'a, U>: Waitable, MutBorrowed<'a, U>: Waitable;
+    where
+        Borrowed<'a, U>: Waitable,
+        MutBorrowed<'a, U>: Waitable;
 }
 
 //Single value immutable
@@ -49,7 +53,9 @@ where
     }
     #[inline]
     fn waiting_get(boxed: &'a BlackBox<U>) -> DynamicResult<Self::Output>
-    where Borrowed < 'a, U >: Waitable, MutBorrowed< 'a, U >: Waitable
+    where
+        Borrowed<'a, U>: Waitable,
+        MutBorrowed<'a, U>: Waitable,
     {
         let unit = boxed.unit_get::<T>()?;
         let f: &dyn Fn(&dyn Any) -> &StorageUnit<T> =
@@ -85,7 +91,10 @@ where
     }
     #[inline]
     fn waiting_get(boxed: &'a BlackBox<U>) -> DynamicResult<Self::Output>
-        where Borrowed<'a, U>: Waitable, MutBorrowed<'a, U>: Waitable {
+    where
+        Borrowed<'a, U>: Waitable,
+        MutBorrowed<'a, U>: Waitable,
+    {
         let unit = boxed.unit_get::<T>()?;
         let f: &dyn Fn(&mut dyn Any) -> &mut StorageUnit<T> =
             &|x| x.downcast_mut::<StorageUnit<T>>().unwrap();
@@ -119,7 +128,10 @@ where
     }
     #[inline]
     fn waiting_get(boxed: &'a BlackBox<U>) -> DynamicResult<Self::Output>
-        where Borrowed<'a, U>: Waitable, MutBorrowed<'a, U>: Waitable {
+    where
+        Borrowed<'a, U>: Waitable,
+        MutBorrowed<'a, U>: Waitable,
+    {
         let unit = boxed.unit_get::<T>()?;
         let f: &dyn Fn(&dyn Any) -> &StorageUnit<T> =
             &|x| x.downcast_ref::<StorageUnit<T>>().unwrap();
@@ -154,7 +166,10 @@ where
     }
     #[inline]
     fn waiting_get(boxed: &'a BlackBox<U>) -> DynamicResult<Self::Output>
-        where Borrowed<'a, U>: Waitable, MutBorrowed<'a, U>: Waitable {
+    where
+        Borrowed<'a, U>: Waitable,
+        MutBorrowed<'a, U>: Waitable,
+    {
         let unit = boxed.unit_get::<T>()?;
         let f: &dyn Fn(&mut dyn Any) -> &mut StorageUnit<T> =
             &|x| x.downcast_mut::<StorageUnit<T>>().unwrap();
@@ -182,7 +197,10 @@ where
     }
     #[inline]
     fn waiting_get(boxed: &'a BlackBox<U>) -> DynamicResult<Self::Output>
-        where Borrowed<'a, U>: Waitable, MutBorrowed<'a, U>: Waitable {
+    where
+        Borrowed<'a, U>: Waitable,
+        MutBorrowed<'a, U>: Waitable,
+    {
         let unit = boxed.unit_get::<T>()?;
         let f: &dyn Fn(&mut dyn Any) -> &mut StorageUnit<T> =
             &|x| x.downcast_mut::<StorageUnit<T>>().unwrap();
@@ -208,7 +226,10 @@ where
     }
     #[inline]
     fn waiting_get(boxed: &'a BlackBox<U>) -> DynamicResult<Self::Output>
-        where Borrowed<'a, U>: Waitable, MutBorrowed<'a, U>: Waitable{
+    where
+        Borrowed<'a, U>: Waitable,
+        MutBorrowed<'a, U>: Waitable,
+    {
         let unit = boxed.unit_get::<T>()?;
         let f: &dyn Fn(&mut dyn Any) -> &mut StorageUnit<T> =
             &|x| x.downcast_mut::<StorageUnit<T>>().unwrap();
@@ -241,7 +262,10 @@ where
 pub trait FetchMultiple<'a, U: ?Sized + Unit<'a>> {
     type Output: 'a;
     fn get_many(boxed: &'a BlackBox<U>) -> DynamicResult<Self::Output>;
-    fn waiting_get_many(boxed: &'a BlackBox<U>) -> DynamicResult<Self::Output> where Borrowed<'a, U>: Waitable, MutBorrowed<'a, U>: Waitable;
+    fn waiting_get_many(boxed: &'a BlackBox<U>) -> DynamicResult<Self::Output>
+    where
+        Borrowed<'a, U>: Waitable,
+        MutBorrowed<'a, U>: Waitable;
 }
 
 //TODO: Make this less atrocious

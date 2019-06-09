@@ -444,7 +444,10 @@ impl<U: ?Sized + for<'a> Unit<'a>> BlackBox<U> {
     ///
     #[inline(always)]
     pub fn waiting_get<'a, T: FetchMultiple<'a, U>>(&'a self) -> DynamicResult<T::Output>
-    where Borrowed<'a, U>: Waitable, MutBorrowed<'a, U>: Waitable {
+    where
+        Borrowed<'a, U>: Waitable,
+        MutBorrowed<'a, U>: Waitable,
+    {
         T::waiting_get_many(self)
     }
 }

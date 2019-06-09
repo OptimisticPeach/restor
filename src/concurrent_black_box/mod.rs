@@ -1,9 +1,12 @@
 use std::any::{Any, TypeId};
 
-use super::black_box::{
-    DynamicResult,
-    ErrorDesc::{self, *},
-    StorageUnit, Unit,
+use super::{
+    impl_unit,
+    black_box::{
+        DynamicResult,
+        ErrorDesc::{self, *},
+        StorageUnit, Unit,
+    }
 };
 use crate::BlackBox;
 use parking_lot::{
@@ -85,25 +88,6 @@ impl<T> RwLockUnit<T> {
 impl<'a, T: 'static + Send> Unit<'a> for RwLockUnit<StorageUnit<T>> {
     type Borrowed = MappedRwLockReadGuard<'a, dyn Any>;
     type MutBorrowed = MappedRwLockWriteGuard<'a, dyn Any>;
-    fn storage(&'a self) -> DynamicResult<MappedRwLockReadGuard<'a, dyn Any>> {
-        self.inner
-            .try_read()
-            .map(|x| RwLockReadGuard::map::<dyn Any, _>(x, |z| &*z))
-            .ok_or(BorrowedIncompatibly)
-    }
-    fn storage_mut(&'a self) -> DynamicResult<MappedRwLockWriteGuard<'a, dyn Any>> {
-        self.inner
-            .try_write()
-            .map(|x| RwLockWriteGuard::map::<dyn Any, _>(x, |z| &mut *z))
-            .ok_or(BorrowedIncompatibly)
-    }
-
-    fn waiting_storage(&'a self) -> MappedRwLockReadGuard<'a, dyn Any> {
-        RwLockReadGuard::map::<dyn Any, _>(self.inner.read(), |z| &*z)
-    }
-    fn waiting_storage_mut(&'a self) -> MappedRwLockWriteGuard<'a, dyn Any> {
-        RwLockWriteGuard::map::<dyn Any, _>(self.inner.write(), |z| &mut *z)
-    }
 
     fn insert_any(&self, new: Box<dyn Any>) -> Option<(Box<dyn Any>, ErrorDesc)> {
         let newtype = new.type_id();
@@ -126,6 +110,26 @@ impl<'a, T: 'static + Send> Unit<'a> for RwLockUnit<StorageUnit<T>> {
         } else {
             Some((new, ErrorDesc::BorrowedIncompatibly))
         }
+    }
+
+    fn storage(&'a self) -> DynamicResult<MappedRwLockReadGuard<'a, dyn Any>> {
+        self.inner
+            .try_read()
+            .map(|x| RwLockReadGuard::map::<dyn Any, _>(x, |z| &*z))
+            .ok_or(BorrowedIncompatibly)
+    }
+    fn storage_mut(&'a self) -> DynamicResult<MappedRwLockWriteGuard<'a, dyn Any>> {
+        self.inner
+            .try_write()
+            .map(|x| RwLockWriteGuard::map::<dyn Any, _>(x, |z| &mut *z))
+            .ok_or(BorrowedIncompatibly)
+    }
+
+    fn waiting_storage(&'a self) -> MappedRwLockReadGuard<'a, dyn Any> {
+        RwLockReadGuard::map::<dyn Any, _>(self.inner.read(), |z| &*z)
+    }
+    fn waiting_storage_mut(&'a self) -> MappedRwLockWriteGuard<'a, dyn Any> {
+        RwLockWriteGuard::map::<dyn Any, _>(self.inner.write(), |z| &mut *z)
     }
 
     fn id(&self) -> TypeId {
@@ -165,7 +169,7 @@ pub struct RwLockStorage {
     black_box: RwLockBlackBox,
 }
 
-crate::impl_unit!(
+impl_unit!(
     RwLockStorage,
     (dyn Any + Send + Sync),
     (Send + Sync + Any),
@@ -241,7 +245,7 @@ pub struct MutexStorage {
     black_box: MutexBlackBox,
 }
 
-crate::impl_unit!(
+impl_unit!(
     MutexStorage,
     (dyn Any + Send),
     (Send + Any),

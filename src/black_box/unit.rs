@@ -82,6 +82,16 @@ impl<'a, R: Deref<Target = dyn Any> + 'a, RM: Deref<Target = dyn Any> + DerefMut
 
 pub trait Waitable {}
 
-impl<'b> Waitable for MappedMutexGuard<'b, dyn Any> {}
-impl<'b> Waitable for MappedRwLockReadGuard<'b, dyn Any> {}
-impl<'b> Waitable for MappedRwLockWriteGuard<'b, dyn Any> {}
+impl<'b, T: ?Sized> Waitable for MappedMutexGuard<'b, T> {}
+impl<'b, T: ?Sized> Waitable for MappedRwLockReadGuard<'b, T> {}
+impl<'b, T: ?Sized> Waitable for MappedRwLockWriteGuard<'b, T> {}
+
+macro_rules! impl_waitable_tuple {
+    () => {};
+    ($first:ident $(, $name:ident)*) => {
+        impl<$first: Waitable, $($name: Waitable),*> Waitable for ($first, $($name),*) {}
+        impl_waitable_tuple!($($name),*);
+    }
+}
+
+impl_waitable_tuple!(A, B, C, D, E, F, G, H, I, J, K);

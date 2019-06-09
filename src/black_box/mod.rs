@@ -9,7 +9,7 @@ mod many;
 mod storageunit;
 mod unit;
 
-pub use crate::black_box::unit::Unit;
+pub use crate::black_box::unit::{Unit, Waitable};
 pub use errors::{DynamicResult, ErrorDesc, UnitError};
 pub use many::{Fetch, FetchMultiple};
 pub use storageunit::StorageUnit;
@@ -433,6 +433,19 @@ impl<U: ?Sized + for<'a> Unit<'a>> BlackBox<U> {
     #[inline(always)]
     pub fn get<'a, T: FetchMultiple<'a, U>>(&'a self) -> DynamicResult<T::Output> {
         T::get_many(self)
+    }
+    ///
+    /// Waits to get a lock for each of the types instead of returning an error in the case of
+    /// a blocking operation. This will still return an error in the case that it is impossible
+    /// to acquire the lock, due to a data format inconsistency (Such as a `Many` present when
+    /// a `One` was requested) or a lack of an allocated `StorageUnit`. All the examples on
+    /// [`BlackBox::get`] still apply as long as the type of storage used is either `RwLockStorage`
+    /// or `MutexStorage`, because they are able to block the thread to acquire a lock.
+    ///
+    #[inline(always)]
+    pub fn waiting_get<'a, T: FetchMultiple<'a, U>>(&'a self) -> DynamicResult<T::Output>
+    where Borrowed<'a, U>: Waitable, MutBorrowed<'a, U>: Waitable {
+        T::waiting_get_many(self)
     }
 }
 

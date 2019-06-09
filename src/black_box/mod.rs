@@ -294,10 +294,13 @@ impl<U: ?Sized + for<'a> Unit<'a>> BlackBox<U> {
         &'b self,
         mut f: F,
     ) -> DynamicResult<D>
-    where Borrowed<'b, U>: Map<dyn Any, StorageUnit<T>, Func = dyn Fn(&dyn Any) -> &StorageUnit<T>> {
+    where
+        Borrowed<'b, U>: Map<dyn Any, StorageUnit<T>, Func = dyn Fn(&dyn Any) -> &StorageUnit<T>>,
+    {
         let unit = self.unit_get::<T>()?;
         let dynstorage = unit.storage()?;
-        let conv_func: &dyn for <'r> Fn(&'r dyn Any) -> &'r StorageUnit<T> = &|x| x.downcast_ref::<StorageUnit<T>>().unwrap();
+        let conv_func: &dyn for<'r> Fn(&'r dyn Any) -> &'r StorageUnit<T> =
+            &|x| x.downcast_ref::<StorageUnit<T>>().unwrap();
         let storage = Map::map(dynstorage, conv_func);
         Ok(f(storage.many()?))
     }
@@ -342,20 +345,18 @@ impl<U: ?Sized + for<'a> Unit<'a>> BlackBox<U> {
     /// # }
     /// ```
     ///
-    pub fn run_for_mut<
-        'a,
-        'b,
-        T: 'static,
-        D: 'static + Any,
-        F: FnMut(&mut Vec<T>) -> D + 'a,
-    >(
+    pub fn run_for_mut<'a, 'b, T: 'static, D: 'static + Any, F: FnMut(&mut Vec<T>) -> D + 'a>(
         &'b self,
         mut f: F,
     ) -> DynamicResult<D>
-    where MutBorrowed<'b, U>: MapMut<dyn Any, StorageUnit<T>, Func = dyn Fn(&mut dyn Any) -> &mut StorageUnit<T>> {
+    where
+        MutBorrowed<'b, U>:
+            MapMut<dyn Any, StorageUnit<T>, Func = dyn Fn(&mut dyn Any) -> &mut StorageUnit<T>>,
+    {
         let unit = self.unit_get::<T>()?;
         let dynstorage = unit.storage_mut()?;
-        let conv_func: &dyn for <'r> Fn(&'r mut dyn Any) -> &'r mut StorageUnit<T> = &|x: &mut dyn Any| x.downcast_mut::<StorageUnit<T>>().unwrap();
+        let conv_func: &dyn for<'r> Fn(&'r mut dyn Any) -> &'r mut StorageUnit<T> =
+            &|x: &mut dyn Any| x.downcast_mut::<StorageUnit<T>>().unwrap();
         let mut storage = MapMut::map(dynstorage, conv_func);
         let res = f(storage.many_mut()?);
         storage.rearrange_if_necessary();

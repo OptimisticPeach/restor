@@ -70,9 +70,6 @@ impl<'a, T: 'static + Send> Unit<'a> for MutexUnit<StorageUnit<T>> {
     }
 }
 
-unsafe impl<T: Send> Send for MutexUnit<StorageUnit<T>> {}
-unsafe impl<T: Send> Sync for MutexUnit<StorageUnit<T>> {}
-
 pub struct RwLockUnit<T> {
     inner: RwLock<T>,
 }
@@ -135,8 +132,6 @@ impl<'a, T: 'static + Send> Unit<'a> for RwLockUnit<StorageUnit<T>> {
         TypeId::of::<T>()
     }
 }
-
-unsafe impl<T: Send> Send for RwLockUnit<StorageUnit<T>> {}
 
 type RwLockBlackBox = BlackBox<
     (dyn for<'a> Unit<

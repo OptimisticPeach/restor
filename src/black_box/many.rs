@@ -17,6 +17,10 @@ pub trait Fetch<'a, U: Unit<'a> + ?Sized> {
     ///
     type Output: 'a;
     ///
+    /// A type exposed for type checking on the contents of the returned lock.
+    ///
+    type Actual;
+    ///
     /// Gets data from the [`BlackBox`](./struct.BlackBox.html) depending on `Self` and `Output`.
     ///
     fn get(boxed: &'a BlackBox<U>) -> DynamicResult<Self::Output>;
@@ -41,6 +45,8 @@ where
         StorageUnit<T>,
         T,
     >>::Output;
+
+    type Actual = T;
     #[inline]
     fn get(boxed: &'a BlackBox<U>) -> DynamicResult<Self::Output> {
         let unit = boxed.unit_get::<T>()?;
@@ -79,6 +85,8 @@ where
         StorageUnit<T>,
         T,
     >>::Output;
+
+    type Actual = T;
     #[inline]
     fn get(boxed: &'a BlackBox<U>) -> DynamicResult<Self::Output> {
         let unit = boxed.unit_get::<T>()?;
@@ -116,6 +124,8 @@ where
         StorageUnit<T>,
         [T],
     >>::Output;
+
+    type Actual = T;
     #[inline]
     fn get(boxed: &'a BlackBox<U>) -> DynamicResult<Self::Output> {
         let unit = boxed.unit_get::<T>()?;
@@ -154,6 +164,8 @@ where
         StorageUnit<T>,
         [T],
     >>::Output;
+
+    type Actual = T;
     #[inline]
     fn get(boxed: &'a BlackBox<U>) -> DynamicResult<Self::Output> {
         let unit = boxed.unit_get::<T>()?;
@@ -187,6 +199,9 @@ where
         MapMut<(dyn Any), StorageUnit<T>, Func = dyn Fn(&mut dyn Any) -> &mut StorageUnit<T>>,
 {
     type Output = T;
+
+    type Actual = T;
+
     #[inline]
     fn get(boxed: &'a BlackBox<U>) -> DynamicResult<Self::Output> {
         let unit = boxed.unit_get::<T>()?;
@@ -216,6 +231,8 @@ where
         MapMut<(dyn Any), StorageUnit<T>, Func = dyn Fn(&mut dyn Any) -> &mut StorageUnit<T>>,
 {
     type Output = Vec<T>;
+
+    type Actual = T;
     #[inline]
     fn get(boxed: &'a BlackBox<U>) -> DynamicResult<Self::Output> {
         let unit = boxed.unit_get::<T>()?;
@@ -261,6 +278,7 @@ where
 ///
 pub trait FetchMultiple<'a, U: ?Sized + Unit<'a>> {
     type Output: 'a;
+    type Actual;
     fn get_many(boxed: &'a BlackBox<U>) -> DynamicResult<Self::Output>;
     fn waiting_get_many(boxed: &'a BlackBox<U>) -> DynamicResult<Self::Output>
     where
@@ -280,6 +298,7 @@ macro_rules! impl_single {
             $first: Fetch<'a, U>,
         {
             type Output = <$first as Fetch<'a, U>>::Output;
+            type Actual = <$first as Fetch<'a, U>>::Actual;
             #[inline]
             fn get_many(boxed: &'a BlackBox<U>) -> DynamicResult<Self::Output> {
                 <$first>::get(boxed)
@@ -344,6 +363,7 @@ macro_rules! impl_tuple {
             U: Unit<'a>,
         {
             type Output = ($first_type::Output, $($typ::Output),*);
+            type Actual = ($first_type::Actual, $($typ::Actual),*);
             #[inline]
             fn get_many(boxed: &'a BlackBox<U>) -> DynamicResult<Self::Output> {
                 Ok(($first_type::get(boxed)?, $($typ::get(boxed)?),*))

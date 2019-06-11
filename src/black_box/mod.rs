@@ -6,17 +6,15 @@ use std::ops::{Deref, DerefMut};
 
 mod errors;
 mod many;
+mod refcell_unit;
 mod storageunit;
 mod unit;
 
-pub use crate::black_box::unit::{Unit, Waitable};
 pub use errors::{DynamicResult, ErrorDesc, UnitError};
 pub use many::{Fetch, FetchMultiple};
+pub use refcell_unit::{DynamicStorage, RefCellUnit};
 pub use storageunit::StorageUnit;
-
-mod refcell_unit;
-
-pub use crate::black_box::refcell_unit::*;
+pub use unit::{Unit, Waitable};
 
 ///
 /// A trait forcing the implementor to implement a `map` function
@@ -91,7 +89,7 @@ impl<'a, I: 'static + ?Sized, O: 'static + ?Sized> MapMut<I, O> for MappedMutexG
 /// This is _NOT_ `Send`, but it is faster, because it
 /// does not use atomic operations.
 /// * `MutexStorage`:
-/// Uses a `Mutex` for `Send` capabilites, and interior mutability
+/// Uses a `Mutex` for `Send` capabilities, and interior mutability
 /// This only exposes mutable getter methods, as there is only
 /// a `&mut` api available for a `MappedMutexGuard`
 /// * `RwLockStorage`:
@@ -109,8 +107,8 @@ pub struct BlackBox<U: ?Sized> {
     pub(crate) data: HashMap<TypeId, Box<U>>,
 }
 
-type Borrowed<'a, T> = <T as Unit<'a>>::Borrowed;
-type MutBorrowed<'a, T> = <T as Unit<'a>>::MutBorrowed;
+pub(crate) type Borrowed<'a, T> = <T as Unit<'a>>::Borrowed;
+pub(crate) type MutBorrowed<'a, T> = <T as Unit<'a>>::MutBorrowed;
 
 impl<U: ?Sized + for<'a> Unit<'a>> BlackBox<U> {
     ///
@@ -169,7 +167,7 @@ impl<U: ?Sized + for<'a> Unit<'a>> BlackBox<U> {
     /// storage.insert(1usize).unwrap();
     /// storage.insert(2usize).unwrap();
     /// storage.run_for::<usize, (), _>(|x| {
-    ///     assert_eq!(x.unwrap().len(), 3);
+    ///     assert_eq!(x.len(), 3);
     /// });
     /// # }
     /// ```
@@ -203,7 +201,7 @@ impl<U: ?Sized + for<'a> Unit<'a>> BlackBox<U> {
     /// storage.insert_many(vec![0usize, 1, 2, 3]).unwrap();
     /// storage.insert_many(vec![4usize, 5, 6, 7]).unwrap();
     /// storage.run_for::<usize, (), _>(|x| {
-    ///     assert_eq!(x.unwrap(), &[0usize, 1, 2, 3, 4, 5, 6, 7]);
+    ///     assert_eq!(x, &[0usize, 1, 2, 3, 4, 5, 6, 7]);
     /// });
     /// # }
     /// ```
@@ -247,6 +245,8 @@ impl<U: ?Sized + for<'a> Unit<'a>> BlackBox<U> {
     ///
     /// The function is also `FnMut` so it can therefore mutate state
     /// such as in a `move ||` closure.
+    ///
+    /// [`DynamicResult`]: ./enum.ErrorDesc.html
     ///
     /// # Example
     /// ### Return nothing
@@ -306,6 +306,38 @@ impl<U: ?Sized + for<'a> Unit<'a>> BlackBox<U> {
     }
 
     ///
+    /// Waits for a lock and then runs a function over a slice within the lock.
+    ///
+    /// The only difference between this and [`run_for`] is that this will
+    /// not immediately return in the case that it is impossible to acquire a
+    /// lock to the data immediately upon calling.
+    ///
+    /// Any examples from [`run_for`] will work as long as the storage used
+    /// is either [`RwLockStorage`] or [`MutexStorage`], because you cannot wait
+    /// for a lock on a [`RefCell`] due to its single-threaded nature.
+    ///
+    /// [`run_for`]: #method.run_for
+    /// [`RwLockStorage`]: ./struct.RwLockStorage.html
+    /// [`MutexStorage`]: ./struct.MutexStorage.html
+    /// [`RefCell`]: https://doc.rust-lang.org/std/cell/struct.RefCell.html
+    ///
+    pub fn waiting_run_for<'a, 'b, T: 'static, D: 'static + Any, F: FnMut(&[T]) -> D + 'a>(
+        &'b self,
+        mut f: F,
+    ) -> DynamicResult<D>
+    where
+        Borrowed<'b, U>:
+            Map<dyn Any, StorageUnit<T>, Func = dyn Fn(&dyn Any) -> &StorageUnit<T>> + Waitable,
+    {
+        let unit = self.unit_get::<T>()?;
+        let dynstorage = unit.waiting_storage();
+        let conv_func: &dyn for<'r> Fn(&'r dyn Any) -> &'r StorageUnit<T> =
+            &|x| x.downcast_ref::<StorageUnit<T>>().unwrap();
+        let storage = Map::map(dynstorage, conv_func);
+        Ok(f(storage.many()?))
+    }
+
+    ///
     /// Runs a function over a mutable [`Vec`] of type `T`, if there is a storage for
     /// `T` allocated. Similar to [`BlackBox::run_for`], this can optionally return an
     /// item, as long as it is an owned item, or has the same lifetime of the closure.
@@ -319,14 +351,17 @@ impl<U: ?Sized + for<'a> Unit<'a>> BlackBox<U> {
     /// # Note
     /// That this is the only way to extract an item from the storage given an index.
     ///
+    /// [`Vec`]: https://doc.rust-lang.org/std/vec/struct.Vec.html
+    /// [`BlackBox::run_for`]: #method.run_for
+    ///
     /// # Examples
     /// ```rust
     /// # fn main() {
     /// use restor::{DynamicStorage, make_storage};
     /// let storage = make_storage!(DynamicStorage: usize);
     /// storage.insert_many(vec![0usize, 1, 2, 3, 4]);
-    /// storage.run_for_mut::<usize, _, _>(|x| for i in x.unwrap() {*i *= 2; *i += 1;}).unwrap();
-    /// storage.run_for::<usize, _, _>(|x| assert_eq!(x.unwrap(), &[1, 3, 5, 7, 9])).unwrap();
+    /// storage.run_for_mut::<usize, _, _>(|x| for i in x {*i *= 2; *i += 1;}).unwrap();
+    /// storage.run_for::<usize, _, _>(|x| assert_eq!(x, &[1, 3, 5, 7, 9])).unwrap();
     /// # }
     /// ```
     ///
@@ -337,7 +372,6 @@ impl<U: ?Sized + for<'a> Unit<'a>> BlackBox<U> {
     /// storage.insert_many(vec![0usize, 1, 2, 3, 4]);
     /// //Remove all but one element from the contents:
     /// let v = storage.run_for_mut::<usize, _, _>(|x| {
-    ///     let x = x.unwrap();
     ///     x.split_off(1)
     /// }).unwrap();
     /// assert_eq!(v, vec![1, 2, 3, 4]);
@@ -355,6 +389,47 @@ impl<U: ?Sized + for<'a> Unit<'a>> BlackBox<U> {
     {
         let unit = self.unit_get::<T>()?;
         let dynstorage = unit.storage_mut()?;
+        let conv_func: &dyn for<'r> Fn(&'r mut dyn Any) -> &'r mut StorageUnit<T> =
+            &|x: &mut dyn Any| x.downcast_mut::<StorageUnit<T>>().unwrap();
+        let mut storage = MapMut::map(dynstorage, conv_func);
+        let res = f(storage.many_mut()?);
+        storage.rearrange_if_necessary();
+        Ok(res)
+    }
+
+    ///
+    /// Waits for a lock and then runs a function over a slice within the lock.
+    ///
+    /// The only difference between this and [`run_for_mut`] is that this will
+    /// not immediately return in the case that it is impossible to acquire a
+    /// lock to the data immediately upon calling.
+    ///
+    /// Any examples from [`run_for_mut`] will work as long as the storage used
+    /// is either [`RwLockStorage`] or [`MutexStorage`], because you cannot wait
+    /// for a lock on a [`RefCell`] due to its single-threaded nature.
+    ///
+    /// [`run_for_mut`]: #method.run_for_mut
+    /// [`RwLockStorage`]: ./struct.RwLockStorage.html
+    /// [`MutexStorage`]: ./struct.MutexStorage.html
+    /// [`RefCell`]: https://doc.rust-lang.org/std/cell/struct.RefCell.html
+    ///
+    pub fn waiting_run_for_mut<
+        'a,
+        'b,
+        T: 'static,
+        D: 'static + Any,
+        F: FnMut(&mut Vec<T>) -> D + 'a,
+    >(
+        &'b self,
+        mut f: F,
+    ) -> DynamicResult<D>
+    where
+        MutBorrowed<'b, U>:
+            MapMut<dyn Any, StorageUnit<T>, Func = dyn Fn(&mut dyn Any) -> &mut StorageUnit<T>>
+                + Waitable,
+    {
+        let unit = self.unit_get::<T>()?;
+        let dynstorage = unit.waiting_storage_mut();
         let conv_func: &dyn for<'r> Fn(&'r mut dyn Any) -> &'r mut StorageUnit<T> =
             &|x: &mut dyn Any| x.downcast_mut::<StorageUnit<T>>().unwrap();
         let mut storage = MapMut::map(dynstorage, conv_func);
@@ -429,6 +504,32 @@ impl<U: ?Sized + for<'a> Unit<'a>> BlackBox<U> {
     ///     println!("Their new email is {}", &*email);
     /// }
     /// ```
+    /// Acquiring other forms of data
+    /// ```rust
+    /// use restor::{make_storage, DynamicStorage};
+    /// let storage = make_storage!(DynamicStorage: usize, String);
+    /// storage.insert_many(vec![0usize, 1, 2, 3, 4, 3, 2, 1, 0]).unwrap();
+    /// storage.insert(String::new()).unwrap();
+    /// storage.insert(String::from("Text")).unwrap();
+    /// //We can iter over the returned lock
+    /// assert_eq!(storage.get::<&[usize]>().unwrap().iter().sum::<usize>(), 16);
+    /// //We can also get mutable locks to slices
+    /// for i in storage.get::<&mut [usize]>().unwrap().iter_mut() {
+    ///     *i += 30;
+    /// }
+    /// //We can extract an item, either from the
+    /// //first slot or the only item. Note that
+    /// //the returned value is not `Box<usize>`
+    /// assert_eq!(storage.get::<Box<usize>>().unwrap(), 30);
+    /// //This works for tuples. Each item in the
+    /// //tuple is individually acquired, so we can
+    /// //acquire multiple of the same type at the
+    /// //same time.
+    /// let (strings, number, nums) = storage.get::<(Vec<String>, Box<usize>, &[usize])>().unwrap();
+    /// assert_eq!(strings, vec![String::new(), String::from("Text")]);
+    /// assert_eq!(number, 31);
+    /// assert_eq!(&*nums, &[32, 33, 34, 33, 32, 31, 30]);
+    /// ```
     ///
     #[inline(always)]
     pub fn get<'a, T: FetchMultiple<'a, U>>(&'a self) -> DynamicResult<T::Output> {
@@ -449,16 +550,5 @@ impl<U: ?Sized + for<'a> Unit<'a>> BlackBox<U> {
         MutBorrowed<'a, U>: Waitable,
     {
         T::waiting_get_many(self)
-    }
-}
-
-impl
-    BlackBox<(dyn for<'a> Unit<'a, Borrowed = Ref<'a, dyn Any>, MutBorrowed = RefMut<'a, dyn Any>>)>
-{
-    #[inline]
-    pub fn allocate_for<T: 'static>(&mut self) {
-        self.data
-            .entry(TypeId::of::<T>())
-            .or_insert_with(|| Box::new(RefCellUnit::new(StorageUnit::<T>::new())));
     }
 }

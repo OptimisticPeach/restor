@@ -1,7 +1,7 @@
 #[doc(hidden)]
 #[macro_export]
 macro_rules! impl_unit {
-    ($name:ident, $traitobject:ty, ($($constraint:tt)*), $storage_wrapper:ident, $mutlock:ident, $unmutlock:ident, $internal:ident) => {
+    ($name:ident, $traitobject:ty, ($($constraint:tt)*), $storage_wrapper:ident($unit:ty), $mutlock:ident, $unmutlock:ident, $internal:ident) => {
         impl $name {
             #[doc = "Adds a storage unit for the given type.\n\
             This will not add another unit in the case that it already exists.\n\n"]
@@ -12,39 +12,32 @@ macro_rules! impl_unit {
                     .entry(::std::any::TypeId::of::<T>())
                     .or_insert_with(|| Box::new($storage_wrapper::new($crate::black_box::StorageUnit::<T>::new())));
             }
-            #[doc = "Returns whether the current storage contains a unit for a \
-            given type.\nPlease refer to the proper documentation for this \
-            function at [`BlackBox::has_unit`]."]
+            #[doc = "Please refer to the documentation for this function at [`BlackBox::has_unit`]."]
             #[inline(always)]
             pub fn has_unit<T: $($constraint)*>(&self) -> bool {
                 self.$internal
                     .has_unit::<T>()
             }
-            #[doc = "Inserts a value whose type is constrained into the internal storage \
-            unit. This will either append or fill a unit, going from `Nope` to \
-            `One`, `One` to `Many` or appending `Many`.\nPlease refer to the proper \
-             documentation for this function at [`BlackBox::insert`]."]
+            #[doc = "Please refer to the documentation for this function at [`BlackBox::insert`]."]
             #[inline(always)]
             pub fn insert<T: $($constraint)*>(&self, data: T) -> Result<(), (T, $crate::ErrorDesc)> {
                 self.$internal
                     .insert(data)
             }
-            #[doc = "Inserts many values of homogeneous types within a [`Vec`]. This will \
-            append to a previously `Many` set of values, append to the end of a `One` value \
-            or replace a `Nope` value.\nPlease refer to the proper documentation for this \
-            function at [`BlackBox::insert_many`]."]
+            #[doc = "Please refer to the documentation for this function at [`BlackBox::insert_many`]."]
             #[inline(always)]
             pub fn insert_many<T: $($constraint)*>(&self, data: Vec<T>) -> Result<(), (Vec<T>, $crate::black_box::ErrorDesc)> {
                 self.$internal
                     .insert_many(data)
             }
 
+            #[doc = "Please refer to the documentation for this function at [`BlackBox::run_for_mut`]."]
             #[inline(always)]
             pub fn run_for_mut<
                 'a,
                 T: $($constraint)*,
                 D: 'static + Any,
-                F: FnMut(&mut Vec<T>) -> D + 'a
+                F: FnMut(&mut Vec<T>) -> D
             >(
                 &self,
                 f: F
@@ -52,23 +45,50 @@ macro_rules! impl_unit {
                 self.$internal
                     .run_for_mut(f)
             }
+
+            #[doc = "Please refer to the documentation for this function at [`BlackBox::get`]."]
+            #[inline(always)]
+            pub fn get<
+                'a,
+                T: $crate::FetchMultiple<'a, $unit>,
+            > (&'a self) -> $crate::black_box::DynamicResult<T::Output>
+            where <T as $crate::FetchMultiple<'a, $unit>>::Actual: $($constraint)*{
+                self.$internal
+                    .get::<T>()
+            }
         }
     };
-    ($name:ident, $traitobject:ty, ($($constraint:tt)*), $storage_wrapper:ident, $mutlock:ident, $unmutlock:ident, $internal:ident, add_unmut) => {
-        $crate::impl_unit!($name, $traitobject, ($($constraint)*), $storage_wrapper, $mutlock, $unmutlock, $internal);
+    ($name:ident, $traitobject:ty, ($($constraint:tt)*), $storage_wrapper:ident($unit:ty), $mutlock:ident, $unmutlock:ident, $internal:ident, add_unmut $(, $($rest:tt)*)?) => {
+        $crate::impl_unit!($name, $traitobject, ($($constraint)*), $storage_wrapper($unit), $mutlock, $unmutlock, $internal $(, $( $rest)*)?);
         impl $name {
             #[inline(always)]
             pub fn run_for<
                 'a,
                 T: $($constraint)*,
                 D: 'static + Any,
-                F: FnMut(&[T]) -> D + 'a,
+                F: FnMut(&[T]) -> D,
             >(
                 &self,
                 f: F,
             ) -> $crate::black_box::DynamicResult<D> {
                 self.$internal
                     .run_for(f)
+            }
+        }
+    };
+    ($name:ident, $traitobject:ty, ($($constraint:tt)*), $storage_wrapper:ident($unit:ty), $mutlock:ident, $unmutlock:ident, $internal:ident, add_waiting $(, $($rest:tt)*)?) => {
+        $crate::impl_unit!($name, $traitobject, ($($constraint)*), $storage_wrapper($unit), $mutlock, $unmutlock, $internal $(, $( $rest)*)?);
+        impl $name {
+            #[doc = "Please refer to the documentation for this function at [`BlackBox::waiting_get`]."]
+            #[inline(always)]
+            pub fn waiting_get<'a, T: $crate::black_box::FetchMultiple<'a, $unit>>(&'a self) -> $crate::black_box::DynamicResult<T::Output>
+            where
+                $crate::black_box::Borrowed<'a, $unit>: $crate::black_box::Waitable,
+                $crate::black_box::MutBorrowed<'a, $unit>: $crate::black_box::Waitable,
+                <T as $crate::FetchMultiple<'a, $unit>>::Actual: $($constraint)*
+            {
+                self.$internal
+                    .waiting_get::<T>()
             }
         }
     };

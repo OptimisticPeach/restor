@@ -1,12 +1,12 @@
 use std::any::{Any, TypeId};
 
 use super::{
-    impl_unit,
     black_box::{
         DynamicResult,
         ErrorDesc::{self, *},
         StorageUnit, Unit,
-    }
+    },
+    impl_unit,
 };
 use crate::BlackBox;
 use parking_lot::{
@@ -14,6 +14,7 @@ use parking_lot::{
     RwLockReadGuard, RwLockWriteGuard,
 };
 
+#[repr(transparent)]
 pub struct MutexUnit<T> {
     inner: Mutex<T>,
 }
@@ -73,6 +74,7 @@ impl<'a, T: 'static + Send> Unit<'a> for MutexUnit<StorageUnit<T>> {
     }
 }
 
+#[repr(transparent)]
 pub struct RwLockUnit<T> {
     inner: RwLock<T>,
 }
@@ -173,11 +175,19 @@ impl_unit!(
     RwLockStorage,
     (dyn Any + Send + Sync),
     (Send + Sync + Any),
-    RwLockUnit,
+    RwLockUnit(
+        (dyn for<'u> Unit<
+            'u,
+            Borrowed = MappedRwLockReadGuard<'u, dyn Any>,
+            MutBorrowed = MappedRwLockWriteGuard<'u, dyn Any>,
+        > + Send
+             + Sync),
+    ),
     MappedRwLockWriteGuard,
     MappedRwLockReadGuard,
     black_box,
-    add_unmut
+    add_unmut,
+    add_waiting
 );
 
 impl RwLockStorage {
@@ -249,10 +259,18 @@ impl_unit!(
     MutexStorage,
     (dyn Any + Send),
     (Send + Any),
-    MutexUnit,
+    MutexUnit(
+        (dyn for<'u> Unit<
+            'u,
+            Borrowed = MappedMutexGuard<'u, dyn Any>,
+            MutBorrowed = MappedMutexGuard<'u, dyn Any>,
+        > + Send
+             + Sync),
+    ),
     MappedMutexGuard,
     MappedMutexGuard,
-    black_box
+    black_box,
+    add_waiting
 );
 
 impl MutexStorage {

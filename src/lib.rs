@@ -33,24 +33,6 @@ mod concurrent_black_box;
 mod macros;
 
 ///
-/// The type alias for storage with interior mutability based on
-/// [`RefCell`]s, only allowing for it exist on one thread. This
-/// library currently restrains what goes into the storage to
-/// `T: Send` because of how it is written, but that will change
-/// in the future. This is mostly used in single-threaded contexts,
-/// for example, the examples in this library's documentation.
-///
-/// # Note
-/// Please defer to the [`make_storage`](../macro.make_storage.html)
-/// macro to create these with a shorthand.
-///
-/// [`RefCell`]: https://doc.rust-lang.org/std/cell/struct.RefCell.html
-///
-pub type DynamicStorage = BlackBox<
-    (dyn for<'a> Unit<'a, Borrowed = Ref<'a, dyn Any>, MutBorrowed = RefMut<'a, dyn Any>>),
->;
-
-///
 /// Shorthand for forming storage with preallocated types.
 /// It will also wrap it in an [`Arc`] (More below)
 ///
@@ -112,7 +94,5 @@ macro_rules! make_storage {
     }
 }
 
-pub use black_box::{BlackBox, ErrorDesc, Fetch, FetchMultiple, Unit, UnitError};
+pub use black_box::{BlackBox, DynamicStorage, ErrorDesc, Fetch, FetchMultiple, Unit, UnitError};
 pub use concurrent_black_box::{MutexStorage, RwLockStorage};
-use std::any::Any;
-use std::cell::{Ref, RefMut};

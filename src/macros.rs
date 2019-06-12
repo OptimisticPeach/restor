@@ -1,7 +1,7 @@
 #[doc(hidden)]
 #[macro_export]
 macro_rules! impl_unit {
-    ($name:ident, $traitobject:ty, ($($constraint:tt)*), $storage_wrapper:ident($unit:ty), $mutlock:ident, $unmutlock:ident, $internal:ident) => {
+    ($name:ident, $traitobject:ty, ($($constraint:tt)*), $storage_wrapper:ident($unit:ty$(,)?), $mutlock:ident, $unmutlock:ident, $internal:ident) => {
         impl $name {
             #[doc = "Adds a storage unit for the given type.\n\
             This will not add another unit in the case that it already exists.\n\n"]
@@ -58,7 +58,7 @@ macro_rules! impl_unit {
             }
         }
     };
-    ($name:ident, $traitobject:ty, ($($constraint:tt)*), $storage_wrapper:ident($unit:ty), $mutlock:ident, $unmutlock:ident, $internal:ident, add_unmut $(, $($rest:tt)*)?) => {
+    ($name:ident, $traitobject:ty, ($($constraint:tt)*), $storage_wrapper:ident($unit:ty$(,)?), $mutlock:ident, $unmutlock:ident, $internal:ident, add_unmut $(, $($rest:tt)*)?) => {
         $crate::impl_unit!($name, $traitobject, ($($constraint)*), $storage_wrapper($unit), $mutlock, $unmutlock, $internal $(, $( $rest)*)?);
         impl $name {
             #[inline(always)]
@@ -76,7 +76,7 @@ macro_rules! impl_unit {
             }
         }
     };
-    ($name:ident, $traitobject:ty, ($($constraint:tt)*), $storage_wrapper:ident($unit:ty), $mutlock:ident, $unmutlock:ident, $internal:ident, add_waiting $(, $($rest:tt)*)?) => {
+    ($name:ident, $traitobject:ty, ($($constraint:tt)*), $storage_wrapper:ident($unit:ty$(,)?), $mutlock:ident, $unmutlock:ident, $internal:ident, add_waiting $(, $($rest:tt)*)?) => {
         $crate::impl_unit!($name, $traitobject, ($($constraint)*), $storage_wrapper($unit), $mutlock, $unmutlock, $internal $(, $( $rest)*)?);
         impl $name {
             #[doc = "Please refer to the documentation for this function at [`BlackBox::waiting_get`]."]

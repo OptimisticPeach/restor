@@ -13,4 +13,4 @@ categories = ["data-structures"]
 license = "MIT"
 
 [dependencies]
-parking_lot = "0.7.1"
+parking_lot = "0.8.0"

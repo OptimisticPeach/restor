@@ -10,7 +10,7 @@ use std::ops::{Deref, DerefMut};
 /// This contains an interface for interacting with a `StorageUnit`
 /// wrapper, and should be ignored by the end user.
 ///
-/// Exposed here are three types:
+/// Exposed here are two types:
 /// - `Borrowed` which must deref to a `dyn Any`
 ///   - [`Ref`] in the case of `DynamicStorage`
 ///   - [`MappedRwLockReadGuard`] in the case of `RwLockStorage`
@@ -19,8 +19,6 @@ use std::ops::{Deref, DerefMut};
 ///   - [`RefMut`] in the case of `DynamicStorage`
 ///   - [`MappedRwLockWriteGuard`] in the case of `MutexStorage`
 ///   - [`MappedMutexGuard`] in the case of `MutexStorage`
-/// - `Owned` which must deref to a `dyn Any`, usually `Box<dyn Any>`
-///   - [`Box`] in the case of `DynamicStorage`, `MutexStorage`, and `RwLockStorage`
 ///
 /// [`Ref`]: https://doc.rust-lang.org/std/cell/struct.Ref.html
 /// [`RefMut`]: https://doc.rust-lang.org/std/cell/struct.RefMut.html
@@ -29,8 +27,6 @@ use std::ops::{Deref, DerefMut};
 /// [`MappedRwLockWriteGuard`]: https://docs.rs/parking_lot/0.8.0/parking_lot/type.MappedRwLockWriteGuard.html
 ///
 /// [`MappedMutexGuard`]: https://docs.rs/parking_lot/0.8.0/parking_lot/type.MappedMutexGuard.html
-///
-/// [`Box`]: https://doc.rust-lang.org/std/boxed/struct.Box.html
 ///
 pub trait Unit<'a> {
     type Borrowed: Deref<Target = dyn Any> + 'a;

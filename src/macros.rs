@@ -94,6 +94,16 @@ macro_rules! impl_unit {
     };
 }
 
+///
+/// A shorthand for unwrapping a `Result` into an `Ok(x)`.
+///
+/// The following syntaxes do the following:
+///
+/// - `(expr)` -> `x`
+/// - `(expr, val)` -> `x == val; x`
+/// - `(expr, val, *)` -> `*x == val; x`
+/// - `(expr, val, [ind])` -> `x[ind] == val; x`
+///
 #[macro_export]
 macro_rules! ok {
     ($e:expr) => {
@@ -130,6 +140,17 @@ macro_rules! ok {
         }
     };
 }
+
+///
+/// A shorthand for unwrapping a `Result` into an `Err(x)`.
+///
+/// The following syntaxes do the following:
+///
+/// - `(expr)` -> `x`
+/// - `(expr, val)` -> `x == val; x`
+/// - `(expr, val, *)` -> `*x == val; x`
+/// - `(expr, val, [ind])` -> `x[ind] == val; x`
+///
 #[macro_export]
 macro_rules! err {
     ($e:expr) => {

@@ -77,16 +77,12 @@ type RefCellBlackBox =
     BlackBox<dyn for<'a> Unit<'a, Borrowed = Ref<'a, dyn Any>, MutBorrowed = RefMut<'a, dyn Any>>>;
 
 ///
-/// The type alias for storage with interior mutability based on
-/// [`RefCell`]s, only allowing for it exist on one thread. This
-/// library currently restrains what goes into the storage to
-/// `T: Send` because of how it is written, but that will change
-/// in the future. This is mostly used in single-threaded contexts,
-/// for example, the examples in this library's documentation.
+/// The newtype for storage with interior mutability based on
+/// [`RefCell`]s, only allowing for it exist on one thread.
 ///
 /// # Note
-/// Please defer to the [`make_storage`](../macro.make_storage.html)
-/// macro to create these with a shorthand.
+/// Please refer to the [`make_storage`](../macro.make_storage.html)
+/// macro to create storages using a shorthand.
 ///
 /// [`RefCell`]: https://doc.rust-lang.org/std/cell/struct.RefCell.html
 ///

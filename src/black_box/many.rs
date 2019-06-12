@@ -256,8 +256,8 @@ where
 }
 
 ///
-/// An abstraction over `Fetch` which works over multiple types, and the
-/// six types which have `Fetch` pre-implemented. This is therefore implemented
+/// An abstraction over [`Fetch`] which works over multiple types, and the
+/// six types which have [`Fetch`] pre-implemented. This is therefore implemented
 /// for the following types:
 ///
 /// - `&T`
@@ -274,7 +274,9 @@ where
 /// - `(A, B, C, D, E, F, G, H, I, J, K)`
 ///
 /// Where each one of the type parameters in the tuple versions must implement
-/// `Fetch`.
+/// [`Fetch`].
+///
+/// [`Fetch`]: ./trait.Fetch.html
 ///
 pub trait FetchMultiple<'a, U: ?Sized + Unit<'a>> {
     type Output: 'a;

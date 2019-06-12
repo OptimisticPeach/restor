@@ -38,13 +38,4 @@ The `Unit` trait allows us to abstract over the generic type of the container (R
 5. Put into its own place in the storage or in a `Vec`
 
 ## What's coming up:
-- ✓ A multithreaded version
-- A more ergonomic api
-  - Callbacks in general
-    - ✓ The ability to pass a `FnMut(&[T])` to run on a piece of data or a slice
-    - The ability to pass a `FnMut(&mut[T])` to run on a piece of data or a slice
-  - The ability to get a reference to the inner `Unit`
-  - ✓ The ability to check if there is a unit attached to a type
-  - The ability to insert a piece of data without worrying about the unit
-  - Add/get an item without worrying about errors, panic instead, and include `try_*` functions
 - A passthrough hasher to avoid the unnecessary hashing of the `TypeId`

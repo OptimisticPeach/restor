@@ -1,5 +1,5 @@
 #![allow(unused_must_use)]
-use restor::{ok, ErrorDesc, RwLockStorage};
+use restor::{err, ok, ErrorDesc, RwLockStorage};
 
 #[test]
 fn instantiate() {
@@ -45,12 +45,10 @@ fn borrow_twice_im() {
     let mut x = RwLockStorage::new();
     x.allocate_for::<usize>();
     x.insert(0usize).unwrap();
-    let y = x.try_get::<usize>();
-    assert!(y.is_ok());
-    let z = x.try_get::<usize>();
-    assert!(z.is_ok());
-    drop(y);
-    drop(z);
+    let y = x.get::<&usize>();
+    ok!(y);
+    let z = x.get::<&usize>();
+    ok!(z);
 }
 
 #[test]
@@ -58,13 +56,10 @@ fn borrow_twice_mut() {
     let mut x = RwLockStorage::new();
     x.allocate_for::<usize>();
     x.insert(0usize).unwrap();
-    let y = x.try_get_mut::<usize>();
-    assert!(y.is_ok());
-    let z = x.try_get_mut::<usize>();
-    if let Err(ErrorDesc::BorrowedIncompatibly) = z {
-    } else {
-        panic!();
-    }
+    let y = x.get::<&mut usize>();
+    let z = x.get::<&mut usize>();
+    err!(z, ErrorDesc::BorrowedIncompatibly);
+    ok!(y);
 }
 
 #[test]
@@ -73,10 +68,10 @@ fn ind() {
     x.allocate_for::<usize>();
     x.insert(0usize).unwrap();
     x.insert(1usize).unwrap();
-    let y = x.try_ind::<usize>(0);
-    let indexed = x.try_ind::<usize>(0);
-    ok!(indexed, 0, *);
-    ok!(y, 0, *);
+    let y = x.get::<&[usize]>();
+    let indexed = x.get::<&[usize]>();
+    ok!(indexed, 0, [0]);
+    ok!(y, 1, [1]);
 }
 
 #[test]
@@ -86,18 +81,18 @@ fn ind_many() {
     x.insert(0usize).unwrap();
     x.insert(1usize).unwrap();
     {
-        let y = x.try_ind::<usize>(0);
-        ok!(y, 0, *);
+        let y = x.get::<&[usize]>();
+        ok!(y, 0, [0]);
     }
     {
-        let y = x.try_ind::<usize>(1);
-        ok!(y, 1, *);
+        let y = x.get::<&[usize]>();
+        ok!(y, 1, [1]);
     }
     {
-        let y = x.try_ind::<usize>(0);
-        ok!(y, 0, *);
-        let z = x.try_ind::<usize>(1);
-        ok!(z, 1, *);
+        let y = x.get::<&[usize]>();
+        ok!(y, 0, [0]);
+        let z = x.get::<&[usize]>();
+        ok!(z, 1, [1]);
     }
 }
 
@@ -108,36 +103,22 @@ fn ind_mut() {
     x.insert(0usize).unwrap();
     x.insert(1usize).unwrap();
     {
-        let y = x.try_ind_mut::<usize>(0);
-        assert!(y.is_ok());
-        if let Ok(mut z) = y {
-            assert_eq!(*z, 0usize);
-            *z = 10;
-        }
+        let y = x.get::<&mut [usize]>();
+        ok!(y, 0, [0])[0] = 10;
     }
     {
-        let y = x.try_ind_mut::<usize>(1);
-        assert!(y.is_ok());
-        if let Ok(z) = y {
-            assert_eq!(*z, 1usize);
-        }
+        let y = x.get::<&mut [usize]>();
+        ok!(y, 1, [1]);
     }
     {
-        let y = x.try_ind_mut::<usize>(0);
-        assert!(y.is_ok());
-        if let Ok(z) = &y {
-            assert_eq!(**z, 10usize);
-        }
-        let z = x.try_ind_mut::<usize>(1);
-        assert!(z.is_err());
-        if let Err(ErrorDesc::BorrowedIncompatibly) = z {
-        } else {
-            panic!("{:?}", *z.unwrap())
-        }
+        let y = x.get::<&mut [usize]>();
+        let z = x.get::<&mut [usize]>();
+        err!(z, ErrorDesc::BorrowedIncompatibly);
+        ok!(y, 10, [0]);
     }
 }
 mod concurrent {
-    use restor::RwLockStorage;
+    use restor::{ok, RwLockStorage};
     use std::sync::Arc;
     use std::thread::spawn;
     use std::time::Duration;
@@ -151,38 +132,26 @@ mod concurrent {
         x.insert(1usize).unwrap();
         let xc = x.clone();
         let t = spawn(move || {
-            let y = (&*xc).try_ind::<usize>(0);
-            assert!(y.is_ok());
-            if let Ok(z) = y {
-                assert_eq!(*z, 0usize);
-            }
+            let y = xc.get::<&[usize]>();
+            ok!(y, 0, [0]);
         });
         t.join().unwrap();
         let xc = x.clone();
         let t = spawn(move || {
-            let y = (&*xc).try_ind::<usize>(1);
-            assert!(y.is_ok());
-            if let Ok(z) = y {
-                assert_eq!(*z, 1usize);
-            }
+            let y = xc.get::<&[usize]>();
+            ok!(y, 1, [1]);
         });
         t.join().unwrap();
         let xc = x.clone();
         let t1 = spawn(move || {
-            let y = xc.try_ind::<usize>(0);
-            assert!(y.is_ok());
-            if let Ok(z) = y {
-                assert_eq!(*z, 0usize);
-            }
+            let y = xc.get::<&[usize]>();
+            ok!(y, 0, [0]);
             std::thread::sleep(Duration::from_millis(240));
         });
         let t2 = spawn(move || {
             std::thread::sleep(Duration::from_millis(200));
-            let z = x.try_ind::<usize>(1);
-            assert!(z.is_ok());
-            if let Ok(nz) = z {
-                assert_eq!(*nz, 1usize);
-            }
+            let z = x.get::<&[usize]>();
+            ok!(z, 1, [1]);
         });
         t1.join().unwrap();
         t2.join().unwrap();
@@ -197,26 +166,26 @@ mod concurrent {
         x.insert(0usize).unwrap();
         x.insert(1usize).unwrap();
         let t = spawn(move || {
-            let y = xc.try_ind_mut::<usize>(0);
-            y.map(|m| *m)
+            let y = xc.get::<&mut [usize]>();
+            y.map(|m| m[0])
         });
         t.join().unwrap().unwrap();
         let xc = x.clone();
         let t = spawn(move || {
-            let y = xc.try_ind_mut::<usize>(1);
-            y.map(|m| *m)
+            let y = xc.get::<&mut [usize]>();
+            y.map(|m| m[1])
         });
         t.join().unwrap().unwrap();
         let xc = <Arc<RwLockStorage> as Clone>::clone(&x);
         let t1 = spawn(move || {
-            let y = xc.try_ind_mut::<usize>(0);
+            let y = xc.get::<&mut [usize]>();
             std::thread::sleep(Duration::from_millis(200));
-            y.map(|m| *m)
+            y.map(|m| m[0])
         });
         let t2 = spawn(move || {
             std::thread::sleep(Duration::from_millis(100));
-            let z = x.try_ind_mut::<usize>(1);
-            z.map(|m| *m)
+            let z = x.get::<&mut [usize]>();
+            z.map(|m| m[1])
         });
         t1.join().unwrap().unwrap();
         assert!(t2.join().unwrap().is_err());

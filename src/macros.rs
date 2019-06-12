@@ -120,6 +120,15 @@ macro_rules! ok {
             Err(e) => panic!("Expected `Ok` but instead found `Err({:?})`", e),
         }
     };
+    ($e:expr, $other:expr, [$i:expr]) => {
+        match $e {
+            Ok(x) => {
+                assert_eq!(x[$i], $other);
+                x
+            }
+            Err(e) => panic!("Expected `Ok` but instead found `Err({:?})`", e),
+        }
+    };
 }
 #[macro_export]
 macro_rules! err {
@@ -143,6 +152,15 @@ macro_rules! err {
             Ok(x) => panic!("Expected `Err` but instead found `Ok(_)`"),
             Err(e) => {
                 assert_eq!(*e, $other);
+                e
+            }
+        }
+    };
+    ($e:expr, $other:expr, [i]) => {
+        match $e {
+            Ok(x) => panic!("Expected `Err` but instead found `Ok(_)`"),
+            Err(e) => {
+                assert_eq!(e[i], $other);
                 e
             }
         }

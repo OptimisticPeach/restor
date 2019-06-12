@@ -1,4 +1,4 @@
-use restor::{ok, ErrorDesc, MutexStorage};
+use restor::{err, ok, ErrorDesc, MutexStorage};
 use std::sync::Arc;
 use std::thread::spawn;
 use std::time::Duration;
@@ -57,31 +57,24 @@ fn borrow_twice_mut() {
 }
 
 #[test]
-fn ind_mut() {
+fn slice_mut() {
     let mut x = MutexStorage::new();
     x.allocate_for::<usize>();
     x.insert(0usize).unwrap();
     x.insert(1usize).unwrap();
     {
-        let y = x.try_ind_mut::<usize>(0);
-        *ok!(y, 0usize, *) = 10;
+        let y = x.get::<&mut [usize]>();
+        ok!(y, 0usize, [0])[0] = 10;
     }
     {
-        let y = x.try_ind_mut::<usize>(1);
-        ok!(y, 1usize, *);
+        let y = x.get::<&mut [usize]>();
+        ok!(y, 1usize, [1]);
     }
     {
-        let y = x.try_ind_mut::<usize>(0);
-        assert!(y.is_ok());
-        if let Ok(z) = &y {
-            assert_eq!(**z, 10usize);
-        }
-        let z = x.try_ind_mut::<usize>(1);
-        assert!(z.is_err());
-        if let Err(ErrorDesc::BorrowedIncompatibly) = z {
-        } else {
-            panic!("{:?}", *z.unwrap())
-        }
+        let y = x.get::<&mut [usize]>();
+        let z = x.get::<&mut [usize]>();
+        err!(z, ErrorDesc::BorrowedIncompatibly);
+        ok!(y, 10usize, [0]);
     }
 }
 
@@ -94,39 +87,25 @@ fn concurrent_ind_mut() {
     x.insert(0usize).unwrap();
     x.insert(1usize).unwrap();
     let t = spawn(move || {
-        let y = xc.try_ind_mut::<usize>(0);
-        assert!(y.is_ok());
-        if let Ok(mut z) = y {
-            assert_eq!(*z, 0usize);
-            *z = 10;
-        }
+        let y = xc.get::<&mut [usize]>();
+        ok!(y, 0, [0])[0] = 10;
     });
     t.join();
     let xc = x.clone();
     let t = spawn(move || {
-        let y = xc.try_ind_mut::<usize>(1);
-        assert!(y.is_ok());
-        if let Ok(z) = y {
-            assert_eq!(*z, 1usize);
-        }
+        let y = xc.get::<&mut [usize]>();
+        ok!(y, 1, [1]);
     });
     let xc = x.clone();
     let t1 = spawn(move || {
-        let y = xc.try_ind_mut::<usize>(0);
-        assert!(y.is_ok());
-        if let Ok(z) = &y {
-            assert_eq!(**z, 10usize);
-        }
+        let y = xc.get::<&mut [usize]>();
         std::thread::sleep(Duration::from_millis(240));
+        ok!(y, 10, [0]);
     });
     let t2 = spawn(move || {
         std::thread::sleep(Duration::from_millis(200));
-        let z = x.try_ind_mut::<usize>(1);
-        assert!(z.is_err());
-        if let Err(ErrorDesc::BorrowedIncompatibly) = z {
-        } else {
-            panic!("{:?}", *z.unwrap())
-        }
+        let z = x.get::<&mut [usize]>();
+        err!(z, ErrorDesc::BorrowedIncompatibly);
     });
     t1.join();
     t2.join();

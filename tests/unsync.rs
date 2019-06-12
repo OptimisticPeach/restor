@@ -1,4 +1,4 @@
-use restor::{ok, DynamicStorage, ErrorDesc};
+use restor::{err, ok, DynamicStorage, ErrorDesc};
 
 #[test]
 fn instantiate() {
@@ -72,9 +72,8 @@ fn ind() {
     x.allocate_for::<usize>();
     x.insert(0usize).unwrap();
     x.insert(1usize).unwrap();
-    let y = x.ind::<&usize>(0);
-    let indexed = x.ind::<&usize>(0);
-    ok!(indexed, 0, *);
+    let y = x.get::<&[usize]>();
+    ok!(y, 0, [0]);
 }
 
 #[test]
@@ -84,30 +83,18 @@ fn ind_many() {
     x.insert(0usize).unwrap();
     x.insert(1usize).unwrap();
     {
-        let y = x.ind::<&usize>(0);
-        assert!(y.is_ok());
-        if let Ok(z) = y {
-            assert_eq!(*z, 0usize);
-        }
+        let y = x.get::<&[usize]>();
+        ok!(y, 0, [0]);
     }
     {
-        let y = x.ind::<&usize>(1);
-        assert!(y.is_ok());
-        if let Ok(z) = y {
-            assert_eq!(*z, 1usize);
-        }
+        let y = x.get::<&[usize]>();
+        ok!(y, 1, [1]);
     }
     {
-        let y = x.ind::<&usize>(0);
-        assert!(y.is_ok());
-        if let Ok(z) = y {
-            assert_eq!(*z, 0usize);
-        }
-        let z = x.ind::<&usize>(1);
-        assert!(z.is_ok());
-        if let Ok(nz) = z {
-            assert_eq!(*nz, 1usize);
-        }
+        let y = x.get::<&[usize]>();
+        ok!(y, 0, [0]);
+        let z = x.get::<&[usize]>();
+        ok!(z, 1, [1]);
     }
 }
 
@@ -118,31 +105,17 @@ fn ind_mut() {
     x.insert(0usize).unwrap();
     x.insert(1usize).unwrap();
     {
-        let y = x.ind::<&mut usize>(0);
-        assert!(y.is_ok());
-        if let Ok(mut z) = y {
-            assert_eq!(*z, 0usize);
-            *z = 10;
-        }
+        let y = x.get::<&mut [usize]>();
+        ok!(y, 0, [0])[0] = 10;
     }
     {
-        let y = x.ind::<&mut usize>(1);
-        assert!(y.is_ok());
-        if let Ok(z) = y {
-            assert_eq!(*z, 1usize);
-        }
+        let y = x.get::<&mut [usize]>();
+        ok!(y, 1, [1]);
     }
     {
-        let y = x.ind::<&mut usize>(0);
-        assert!(y.is_ok());
-        if let Ok(z) = &y {
-            assert_eq!(**z, 10usize);
-        }
-        let z = x.ind::<&mut usize>(1);
-        assert!(z.is_err());
-        if let Err(ErrorDesc::BorrowedIncompatibly) = z {
-        } else {
-            panic!("{:?}", z.unwrap())
-        }
+        let y = x.get::<&mut [usize]>();
+        let z = x.get::<&mut [usize]>();
+        err!(z, ErrorDesc::BorrowedIncompatibly);
+        ok!(y, 10, [0]);
     }
 }

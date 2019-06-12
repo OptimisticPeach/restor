@@ -181,7 +181,7 @@ impl_unit!(
             Borrowed = MappedRwLockReadGuard<'u, dyn Any>,
             MutBorrowed = MappedRwLockWriteGuard<'u, dyn Any>,
         > + Send
-             + Sync)
+             + Sync),
     ),
     MappedRwLockWriteGuard,
     MappedRwLockReadGuard,
@@ -265,7 +265,7 @@ impl_unit!(
             Borrowed = MappedMutexGuard<'u, dyn Any>,
             MutBorrowed = MappedMutexGuard<'u, dyn Any>,
         > + Send
-             + Sync)
+             + Sync),
     ),
     MappedMutexGuard,
     MappedMutexGuard,

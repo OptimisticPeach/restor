@@ -36,6 +36,3 @@ The `Unit` trait allows us to abstract over the generic type of the container (R
 3. Passed to the `StorageUnit as dyn Unit`
 4. Try to downcast as either a `T` or a `Vec<T>`
 5. Put into its own place in the storage or in a `Vec`
-
-## What's coming up:
-- A passthrough hasher to avoid the unnecessary hashing of the `TypeId`

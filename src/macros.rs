@@ -34,7 +34,6 @@ macro_rules! impl_unit {
             #[doc = "Please refer to the documentation for this function at [`BlackBox::run_for_mut`]."]
             #[inline(always)]
             pub fn run_for_mut<
-                'a,
                 T: $($constraint)*,
                 D: 'static + Any,
                 F: FnMut(&mut Vec<T>) -> D
@@ -63,7 +62,6 @@ macro_rules! impl_unit {
         impl $name {
             #[inline(always)]
             pub fn run_for<
-                'a,
                 T: $($constraint)*,
                 D: 'static + Any,
                 F: FnMut(&[T]) -> D,

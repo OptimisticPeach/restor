@@ -5,12 +5,14 @@ use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 
 mod errors;
+mod hasher;
 mod many;
 mod refcell_unit;
 mod storageunit;
 mod unit;
 
 pub use errors::{DynamicResult, ErrorDesc, UnitError};
+use hasher::PassthroughHasherBuilder;
 pub use many::{Fetch, FetchMultiple};
 pub use refcell_unit::{DynamicStorage, RefCellUnit};
 pub use storageunit::StorageUnit;
@@ -104,7 +106,7 @@ impl<'a, I: 'static + ?Sized, O: 'static + ?Sized> MapMut<I, O> for MappedMutexG
 ///
 #[derive(Default)]
 pub struct BlackBox<U: ?Sized> {
-    pub(crate) data: HashMap<TypeId, Box<U>>,
+    pub(crate) data: HashMap<TypeId, Box<U>, PassthroughHasherBuilder>,
 }
 
 pub(crate) type Borrowed<'a, T> = <T as Unit<'a>>::Borrowed;
@@ -116,7 +118,7 @@ impl<U: ?Sized + for<'a> Unit<'a>> BlackBox<U> {
     ///
     pub fn new() -> Self {
         Self {
-            data: HashMap::new(),
+            data: HashMap::with_hasher(PassthroughHasherBuilder),
         }
     }
 

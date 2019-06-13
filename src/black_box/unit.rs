@@ -2,6 +2,7 @@ use super::errors::*;
 use parking_lot::{MappedMutexGuard, MappedRwLockReadGuard, MappedRwLockWriteGuard};
 use std::any::{Any, TypeId};
 use std::fmt::{Debug, Formatter};
+use std::hash::{Hash, Hasher};
 use std::ops::{Deref, DerefMut};
 
 ///
@@ -73,6 +74,14 @@ impl<'a, R: Deref<Target = dyn Any> + 'a, RM: Deref<Target = dyn Any> + DerefMut
 {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         write!(f, "Unit(TypeId: {:?})", self.id())
+    }
+}
+
+impl<'a, R: Deref<Target = dyn Any> + 'a, RM: Deref<Target = dyn Any> + DerefMut + 'a> Hash
+    for dyn Unit<'a, Borrowed = R, MutBorrowed = RM>
+{
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write_u64(unsafe { std::mem::transmute(self.id()) });
     }
 }
 

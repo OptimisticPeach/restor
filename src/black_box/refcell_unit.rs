@@ -99,4 +99,10 @@ impl DynamicStorage {
     }
 }
 
+impl Default for DynamicStorage {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl_unit!(DynamicStorage, dyn Any, ('static), RefCellUnit(dyn for<'u> Unit<'u, Borrowed=Ref<'u, dyn Any>, MutBorrowed=RefMut<'u, dyn Any>>), RefMut, Ref, black_box, add_unmut);

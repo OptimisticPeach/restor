@@ -39,6 +39,14 @@ pub trait Unit<'a> {
     fn insert_any(&self, new: Box<dyn Any>) -> Option<(Box<dyn Any>, ErrorDesc)>;
 
     ///
+    /// Waits to insert a value into the storage.
+    ///
+    fn waiting_insert(&self, new: Box<dyn Any>) -> Option<(Box<dyn Any>, ErrorDesc)>
+    where
+        Self::Borrowed: Waitable,
+        Self::MutBorrowed: Waitable;
+
+    ///
     /// Returns an immutable lock to the internal `StorageUnit<T>`
     ///
     fn storage(&'a self) -> DynamicResult<Self::Borrowed>;

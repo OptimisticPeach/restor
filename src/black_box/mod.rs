@@ -175,12 +175,35 @@ impl<U: ?Sized + for<'a> Unit<'a>> BlackBox<U> {
     /// ```
     ///
     /// ## Note
-    /// This returns a `Result<(), (T, ErrorDesc)>` for ease of use, with calling `.unwrap()`.
+    /// - This returns a `Result<(), (T, ErrorDesc)>` for ease of use, with calling `.unwrap()`.
+    /// - It is currently impossible to insert `Vec<T>`s, which would result in inserting `T`s.
     ///
     pub fn insert<T: 'static>(&self, data: T) -> Result<(), (T, ErrorDesc)> {
         let entry = self.data.get(&TypeId::of::<T>());
         match entry {
             Some(x) => match x.insert_any(Box::new(data)) {
+                Some((x, e)) => Err((*x.downcast().unwrap(), e)),
+                None => Ok(()),
+            },
+            None => Err((data, ErrorDesc::NoAllocatedUnit)),
+        }
+    }
+
+    ///
+    /// A waiting version of [`BlackBox::insert`]. This will wait for a lock to be available
+    /// so as to be able to insert the data. This will work with all of the examples from
+    /// [`BlackBox::insert`], as long as the storage type is `RwLockStorage` or `MutexStorage`.
+    ///
+    /// [`BlackBox::insert`]: #method.insert
+    ///
+    pub fn waiting_insert<'a, T: 'static>(&'a self, data: T) -> Result<(), (T, ErrorDesc)>
+    where
+        Borrowed<'a, U>: Waitable,
+        MutBorrowed<'a, U>: Waitable,
+    {
+        let entry = self.data.get(&TypeId::of::<T>());
+        match entry {
+            Some(x) => match x.waiting_insert(Box::new(data)) {
                 Some((x, e)) => Err((*x.downcast().unwrap(), e)),
                 None => Ok(()),
             },
@@ -213,14 +236,44 @@ impl<U: ?Sized + for<'a> Unit<'a>> BlackBox<U> {
     /// at inserting into the storage.
     ///
     pub fn insert_many<T: 'static>(&self, data: Vec<T>) -> Result<(), (Vec<T>, ErrorDesc)> {
-        if let Some(unit) = self.data.get(&TypeId::of::<T>()) {
-            if let Some((ret, e)) = unit.insert_any(Box::new(data)) {
-                Err((*ret.downcast().unwrap(), e))
-            } else {
-                Ok(())
-            }
-        } else {
-            Err((data, ErrorDesc::NoAllocatedUnit))
+        let entry = self.data.get(&TypeId::of::<T>());
+        match entry {
+            Some(x) => match x.insert_any(Box::new(data)) {
+                Some((x, e)) => Err((*x.downcast().unwrap(), e)),
+                None => Ok(()),
+            },
+            None => Err((data, ErrorDesc::NoAllocatedUnit)),
+        }
+    }
+
+    ///
+    /// Waits for a lock and inserts when possible. This, like [`insert_many`]
+    /// returns a `Result<(), (Vec<T>, ErrorDesc)>`, which is meant to be used
+    /// in most contexts as `storage.insert(value).unwrap()`.
+    ///
+    /// Please refer to both [`insert_many`] and [`insert`] for further info on
+    /// this and related functions. Examples from both will work as long as the
+    /// storage type used supports waiting, including both `RwLockStorage` and
+    /// `MutexStorage`.
+    ///
+    /// [`insert_many`]: #method.insert_many
+    /// [`insert`]: #method.insert
+    ///
+    pub fn waiting_insert_many<'a, T: 'static>(
+        &'a self,
+        data: Vec<T>,
+    ) -> Result<(), (Vec<T>, ErrorDesc)>
+    where
+        Borrowed<'a, U>: Waitable,
+        MutBorrowed<'a, U>: Waitable,
+    {
+        let entry = self.data.get(&TypeId::of::<T>());
+        match entry {
+            Some(x) => match x.waiting_insert(Box::new(data)) {
+                Some((x, e)) => Err((*x.downcast().unwrap(), e)),
+                None => Ok(()),
+            },
+            None => Err((data, ErrorDesc::NoAllocatedUnit)),
         }
     }
 

@@ -46,6 +46,10 @@ impl<'a, T: 'static> Unit<'a> for RefCellUnit<StorageUnit<T>> {
         }
     }
 
+    fn waiting_insert(&self, _new: Box<dyn Any>) -> Option<(Box<dyn Any>, ErrorDesc)> {
+        unreachable!()
+    }
+
     fn storage(&'a self) -> DynamicResult<Ref<'a, dyn Any>> {
         self.inner
             .try_borrow()

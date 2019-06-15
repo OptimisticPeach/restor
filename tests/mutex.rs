@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use restor::{err, ok, ErrorDesc, MutexStorage};
 use std::sync::Arc;
 use std::thread::spawn;
@@ -90,12 +92,13 @@ fn concurrent_ind_mut() {
         let y = xc.get::<&mut [usize]>();
         ok!(y, 0, [0])[0] = 10;
     });
-    t.join();
+    t.join().unwrap();
     let xc = x.clone();
     let t = spawn(move || {
         let y = xc.get::<&mut [usize]>();
         ok!(y, 1, [1]);
     });
+    t.join().unwrap();
     let xc = x.clone();
     let t1 = spawn(move || {
         let y = xc.get::<&mut [usize]>();
@@ -107,6 +110,6 @@ fn concurrent_ind_mut() {
         let z = x.get::<&mut [usize]>();
         err!(z, ErrorDesc::BorrowedIncompatibly);
     });
-    t1.join();
-    t2.join();
+    t1.join().unwrap();
+    t2.join().unwrap();
 }

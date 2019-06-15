@@ -1,5 +1,5 @@
 use super::{
-    BlackBox, Borrowed, DynamicResult, Map, MapMut, MutBorrowed, StorageUnit, Unit, Waitable,
+    BlackBox, Borrowed, DynamicResult, Map, MapMut, MutBorrowed, StorageUnit, Unit, Waitable
 };
 use std::any::Any;
 
@@ -382,3 +382,83 @@ macro_rules! impl_tuple {
 }
 
 impl_tuple!(A, B, C, D, E, F, G, H, I, J, K);
+
+#[cfg(test)]
+mod tests {
+    #![allow(unused)]
+    use lazy_static::*;
+    use crate::{make_storage, RwLockStorage};
+    lazy_static!{
+        static ref storage: RwLockStorage = make_storage!(RwLockStorage: GetOneType,
+        many_types::Type0,
+        many_types::Type1,
+        many_types::Type2,
+        many_types::Type3,
+        many_types::Type4,
+        many_types::Type5);
+    }
+    #[derive(Clone, Copy, Debug)]
+    struct GetOneType;
+    #[test]
+    fn get_one_type() {
+        storage.insert(GetOneType).unwrap();
+        {
+            storage.get::<&GetOneType>().unwrap();
+        }
+        {
+            storage.get::<&mut GetOneType>().unwrap();
+        }
+        {
+            storage.get::<Box<GetOneType>>().unwrap();
+        }
+        storage.insert_many(vec![GetOneType; 20]).unwrap();
+        {
+            storage.get::<&[GetOneType]>().unwrap();
+        }
+        {
+            storage.get::<&mut [GetOneType]>().unwrap();
+        }
+        {
+            storage.get::<Vec<GetOneType>>().unwrap();
+        }
+    }
+    mod many_types {
+        #[derive(Clone, Copy, Debug)]
+        pub struct Type0;
+
+        #[derive(Clone, Copy, Debug)]
+        pub struct Type1;
+
+        #[derive(Clone, Copy, Debug)]
+        pub struct Type2;
+
+        #[derive(Clone, Copy, Debug)]
+        pub struct Type3;
+
+        #[derive(Clone, Copy, Debug)]
+        pub struct Type4;
+
+        #[derive(Clone, Copy, Debug)]
+        pub struct Type5;
+    }
+    #[test]
+    fn get_many_types() {
+        use many_types::*;
+        storage.insert(Type0).unwrap();
+        storage.insert(Type1).unwrap();
+        storage.insert(Type2).unwrap();
+        storage.insert_many(vec![Type3; 10]).unwrap();
+        storage.insert_many(vec![Type4; 10]).unwrap();
+        storage.insert_many(vec![Type5; 10]).unwrap();
+
+        let (t0, t1, t2, t3, t4, t5) =
+            storage.get::<(
+                &Type0,
+                &mut Type1,
+                Box<Type2>,
+                &[Type3],
+                &mut [Type4],
+                Vec<Type5>
+            )>().unwrap();
+    }
+}

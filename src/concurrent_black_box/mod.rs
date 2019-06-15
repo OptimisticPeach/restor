@@ -40,7 +40,7 @@ impl<'a, T: 'static + Send> Unit<'a> for MutexUnit<StorageUnit<T>> {
                     )
                 }));
                 None
-            } else if new.is::<Box<Vec<T>>>() {
+            } else if new.is::<Vec<T>>() {
                 x.insert_many(*new.downcast::<Vec<T>>().unwrap());
                 None
             } else {
@@ -122,7 +122,7 @@ impl<'a, T: 'static + Send> Unit<'a> for RwLockUnit<StorageUnit<T>> {
                     )
                 }));
                 None
-            } else if new.is::<Box<Vec<T>>>() {
+            } else if new.is::<Vec<T>>() {
                 x.insert_many(*new.downcast::<Vec<T>>().unwrap());
                 None
             } else {

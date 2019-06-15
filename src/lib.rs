@@ -78,13 +78,13 @@ mod macros;
 macro_rules! make_storage {
     ($storagetype:ty $(: $($contents:ty),*)? ) => {
         {
-            let mut storage = <$storagetype>::new();
+            let mut temp_storage__ = <$storagetype>::new();
             $(
                 $(
-                    storage.allocate_for::<$contents>();
+                    temp_storage__.allocate_for::<$contents>();
                 )*
             )?
-            storage
+            temp_storage__
         }
     };
     (Arc $storage:ty $(: $($contents:ty),*)? ) => {

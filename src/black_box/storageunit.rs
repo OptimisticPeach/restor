@@ -22,6 +22,7 @@ pub enum StorageUnit<T: 'static> {
 }
 
 impl<T: Sized> StorageUnit<T> {
+    #[inline(always)]
     pub fn new() -> Self {
         StorageUnit::Nope
     }
@@ -74,6 +75,7 @@ impl<T: Sized> StorageUnit<T> {
         }
     }
 
+    #[inline]
     pub fn one(&self) -> DynamicResult<&T> {
         if let StorageUnit::One(x) = self {
             Ok(x)
@@ -82,6 +84,7 @@ impl<T: Sized> StorageUnit<T> {
         }
     }
 
+    #[inline]
     pub fn one_mut(&mut self) -> DynamicResult<&mut T> {
         if let StorageUnit::One(x) = self {
             Ok(x)
@@ -90,6 +93,7 @@ impl<T: Sized> StorageUnit<T> {
         }
     }
 
+    #[inline]
     pub fn many(&self) -> DynamicResult<&[T]> {
         if let StorageUnit::Many(x) = self {
             Ok(x)
@@ -98,6 +102,7 @@ impl<T: Sized> StorageUnit<T> {
         }
     }
 
+    #[inline]
     pub fn many_mut(&mut self) -> DynamicResult<&mut Vec<T>> {
         if let StorageUnit::Many(x) = self {
             Ok(x)

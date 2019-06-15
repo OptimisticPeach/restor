@@ -1,5 +1,5 @@
 use super::{
-    BlackBox, Borrowed, DynamicResult, Map, MapMut, MutBorrowed, StorageUnit, Unit, Waitable
+    BlackBox, Borrowed, DynamicResult, Map, MapMut, MutBorrowed, StorageUnit, Unit, Waitable,
 };
 use std::any::Any;
 
@@ -386,16 +386,25 @@ impl_tuple!(A, B, C, D, E, F, G, H, I, J, K);
 #[cfg(test)]
 mod tests {
     #![allow(unused)]
-    use lazy_static::*;
     use crate::{make_storage, RwLockStorage};
-    lazy_static!{
-        static ref storage: RwLockStorage = make_storage!(RwLockStorage: GetOneType,
-        many_types::Type0,
-        many_types::Type1,
-        many_types::Type2,
-        many_types::Type3,
-        many_types::Type4,
-        many_types::Type5);
+    use lazy_static::*;
+    lazy_static! {
+        static ref storage: RwLockStorage = make_storage!(
+            RwLockStorage: GetOneType,
+            WaitingType,
+            many_types::Type0,
+            many_types::Type1,
+            many_types::Type2,
+            many_types::Type3,
+            many_types::Type4,
+            many_types::Type5,
+            waiting_types::Type0,
+            waiting_types::Type1,
+            waiting_types::Type2,
+            waiting_types::Type3,
+            waiting_types::Type4,
+            waiting_types::Type5
+        );
     }
     #[derive(Clone, Copy, Debug)]
     struct GetOneType;
@@ -451,14 +460,80 @@ mod tests {
         storage.insert_many(vec![Type4; 10]).unwrap();
         storage.insert_many(vec![Type5; 10]).unwrap();
 
-        let (t0, t1, t2, t3, t4, t5) =
-            storage.get::<(
+        let (t0, t1, t2, t3, t4, t5) = storage
+            .get::<(
                 &Type0,
                 &mut Type1,
                 Box<Type2>,
                 &[Type3],
                 &mut [Type4],
-                Vec<Type5>
-            )>().unwrap();
+                Vec<Type5>,
+            )>()
+            .unwrap();
+    }
+    #[derive(Clone, Copy, Debug)]
+    struct WaitingType;
+    #[test]
+    fn waiting_get_one_type() {
+        storage.insert(WaitingType).unwrap();
+        {
+            storage.waiting_get::<&WaitingType>().unwrap();
+        }
+        {
+            storage.waiting_get::<&mut WaitingType>().unwrap();
+        }
+        {
+            storage.waiting_get::<Box<WaitingType>>().unwrap();
+        }
+        storage.insert_many(vec![WaitingType; 20]).unwrap();
+        {
+            storage.waiting_get::<&[WaitingType]>().unwrap();
+        }
+        {
+            storage.waiting_get::<&mut [WaitingType]>().unwrap();
+        }
+        {
+            storage.waiting_get::<Vec<WaitingType>>().unwrap();
+        }
+    }
+    mod waiting_types {
+        #[derive(Clone, Copy, Debug)]
+        pub struct Type0;
+
+        #[derive(Clone, Copy, Debug)]
+        pub struct Type1;
+
+        #[derive(Clone, Copy, Debug)]
+        pub struct Type2;
+
+        #[derive(Clone, Copy, Debug)]
+        pub struct Type3;
+
+        #[derive(Clone, Copy, Debug)]
+        pub struct Type4;
+
+        #[derive(Clone, Copy, Debug)]
+        pub struct Type5;
+    }
+    #[test]
+    fn waiting_get_many_types() {
+        use waiting_types::*;
+        storage.insert(Type0).unwrap();
+        storage.insert(Type1).unwrap();
+        storage.insert(Type2).unwrap();
+        storage.insert_many(vec![Type3; 10]).unwrap();
+        storage.insert_many(vec![Type4; 10]).unwrap();
+        storage.insert_many(vec![Type5; 10]).unwrap();
+
+        let (t0, t1, t2, t3, t4, t5) = storage
+            .get::<(
+                &Type0,
+                &mut Type1,
+                Box<Type2>,
+                &[Type3],
+                &mut [Type4],
+                Vec<Type5>,
+            )>()
+            .unwrap();
     }
 }

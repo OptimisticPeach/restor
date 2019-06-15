@@ -69,42 +69,53 @@ pub trait Unit<'a> {
     fn id(&self) -> TypeId;
 }
 
-impl<'a, R: Deref<Target = dyn Any> + 'a, RM: Deref<Target = dyn Any> + DerefMut + 'a> PartialEq
-    for dyn Unit<'a, Borrowed = R, MutBorrowed = RM>
-{
-    fn eq(&self, other: &Self) -> bool {
-        self.id() == other.id()
-    }
-}
-
-impl<'a, R: Deref<Target = dyn Any> + 'a, RM: Deref<Target = dyn Any> + DerefMut + 'a> Debug
-    for dyn Unit<'a, Borrowed = R, MutBorrowed = RM>
-{
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "Unit(TypeId: {:?})", self.id())
-    }
-}
-
-impl<'a, R: Deref<Target = dyn Any> + 'a, RM: Deref<Target = dyn Any> + DerefMut + 'a> Hash
-    for dyn Unit<'a, Borrowed = R, MutBorrowed = RM>
-{
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        state.write_u64(unsafe { std::mem::transmute(self.id()) });
-    }
-}
-
 pub trait Waitable {}
 
 impl<'b, T: ?Sized> Waitable for MappedMutexGuard<'b, T> {}
 impl<'b, T: ?Sized> Waitable for MappedRwLockReadGuard<'b, T> {}
 impl<'b, T: ?Sized> Waitable for MappedRwLockWriteGuard<'b, T> {}
 
-macro_rules! impl_waitable_tuple {
-    () => {};
-    ($first:ident $(, $name:ident)*) => {
-        impl<$first: Waitable, $($name: Waitable),*> Waitable for ($first, $($name),*) {}
-        impl_waitable_tuple!($($name),*);
+#[cfg(test)]
+mod tests {
+    use super::Unit;
+    use crate::black_box::StorageUnit;
+    use crate::concurrent_black_box::RwLockUnit;
+    use std::any::{Any, TypeId};
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    #[test]
+    fn insert() {
+        let storage = RwLockUnit::new(StorageUnit::<usize>::new());
+        storage.insert_any(Box::new(0usize) as _);
+        storage.insert_any(Box::new(vec![1usize, 2, 3, 4]));
+        assert_eq!(
+            storage.inner().read().many().unwrap(),
+            &[0usize, 1, 2, 3, 4]
+        );
+    }
+
+    #[test]
+    fn waiting_insert() {
+        let storage = RwLockUnit::new(StorageUnit::<usize>::new());
+        storage.waiting_insert(Box::new(0usize) as _);
+        storage.waiting_insert(Box::new(vec![1usize, 2, 3, 4]));
+        assert_eq!(
+            storage.inner().read().many().unwrap(),
+            &[0usize, 1, 2, 3, 4]
+        );
+    }
+
+    #[test]
+    fn id() {
+        let storage = RwLockUnit::new(StorageUnit::<usize>::new());
+        assert_eq!(storage.id(), TypeId::of::<usize>());
+    }
+
+    #[test]
+    fn eq() {
+        let storage = RwLockUnit::new(StorageUnit::<usize>::new());
+        let storage_2 = RwLockUnit::new(StorageUnit::<usize>::new());
+        assert_eq!(storage.id(), storage_2.id());
     }
 }
-
-impl_waitable_tuple!(A, B, C, D, E, F, G, H, I, J, K);

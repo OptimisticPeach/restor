@@ -63,3 +63,37 @@ impl<'a, I: 'static + ?Sized, O: 'static + ?Sized> MapMut<I, O> for MappedMutexG
         MappedMutexGuard::map(self, f)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{Map, MapMut};
+    use crate::{make_storage, RwLockStorage};
+    use lazy_static::*;
+    lazy_static! {
+        static ref storage: RwLockStorage = make_storage!(RwLockStorage: UnMut, Mut);
+    }
+    #[derive(Debug)]
+    struct UnMut(pub String);
+
+    #[derive(Debug)]
+    struct Mut(pub String);
+
+    #[test]
+    fn test_map() {
+        storage.insert(UnMut("Abc".into())).unwrap();
+        let guard = storage.get::<&UnMut>().unwrap();
+        assert_eq!(guard.0, "Abc");
+        let guard = guard.map(&|x| &x.0[1..]);
+        assert_eq!(&*guard, "bc");
+    }
+
+    #[test]
+    fn test_map_mut() {
+        storage.insert(Mut("Abc".into())).unwrap();
+        let mut guard = storage.get::<&mut Mut>().unwrap();
+        assert_eq!(guard.0, "Abc");
+        guard.0.push_str("def");
+        let guard = guard.map(&|x| &mut x.0[2..]);
+        assert_eq!(&*guard, "cdef");
+    }
+}

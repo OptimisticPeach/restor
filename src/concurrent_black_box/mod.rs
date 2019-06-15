@@ -104,6 +104,10 @@ impl<T> RwLockUnit<T> {
             inner: RwLock::new(data),
         }
     }
+    #[cfg(test)]
+    pub fn inner(&self) -> &RwLock<T> {
+        &self.inner
+    }
 }
 
 impl<'a, T: 'static + Send> Unit<'a> for RwLockUnit<StorageUnit<T>> {

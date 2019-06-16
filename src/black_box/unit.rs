@@ -1,8 +1,6 @@
 use super::errors::*;
 use parking_lot::{MappedMutexGuard, MappedRwLockReadGuard, MappedRwLockWriteGuard};
 use std::any::{Any, TypeId};
-use std::fmt::{Debug, Formatter};
-use std::hash::{Hash, Hasher};
 use std::ops::{Deref, DerefMut};
 
 ///
@@ -80,9 +78,7 @@ mod tests {
     use super::Unit;
     use crate::black_box::StorageUnit;
     use crate::concurrent_black_box::RwLockUnit;
-    use std::any::{Any, TypeId};
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
+    use std::any::TypeId;
 
     #[test]
     fn insert() {
